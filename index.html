@@ -17,25 +17,27 @@
     ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
     body { background: #0f0f1a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; margin: 0; }
     .glass { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
-    .glass-hover:hover { background: rgba(255,255,255,0.065); }
+    .glass-hover:hover { background: rgba(255,255,255,0.07); }
     .glow { box-shadow: 0 0 28px rgba(139,92,246,0.1); }
     .grad { background: linear-gradient(135deg, #8b5cf6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.65); cursor: pointer; }
     input:focus, textarea:focus, select:focus { outline: none; border-color: #8b5cf6 !important; }
     select option { background: #1e1b2e; color: #e2e8f0; }
-    @keyframes up { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-    .up { animation: up .25s ease; }
-    .pill { display:inline-flex; align-items:center; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; }
-    .metric-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    @keyframes up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .up { animation: up .2s ease; }
+    .pill { display:inline-flex; align-items:center; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    .toggle { width: 36px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; transition: background .2s; border: none; }
+    .toggle::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .2s; }
+    .toggle.on::after { transform: translateX(16px); }
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-// ‚îÄ‚îÄ Icons ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ SVG Icons ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const SI = ({ p, size=16, stroke=2 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
@@ -44,43 +46,41 @@ const SI = ({ p, size=16, stroke=2 }) => (
 );
 const IC = {
   chart:    "M3 3v18h18M7 16l4-4 4 4 4-5",
-  compare:  ["M18 9h-7M11 15H4","M3 6h4m0 0v4M3 18h4m0 0v-4","M21 6h-4m0 0v4M21 18h-4m0 0v-4"],
+  compare:  ["M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"],
   plus:     "M12 5v14M5 12h14",
-  list:     ["M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2","M9 5a2 2 0 002 2h2a2 2 0 002-2","M9 5a2 2 0 012-2h2a2 2 0 012 2","M9 12h6M9 16h4"],
+  list:     ["M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2","M9 5a2 2 0 002 2h2a2 2 0 002-2","M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"],
   tag:      ["M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z","M7 7h.01"],
   edit:     ["M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5","M17.586 3.586a2 2 0 012.828 2.828L12 15l-4 1 1-4 8.586-8.586z"],
   trash:    ["M3 6h18","M19 6l-1 14H6L5 6","M8 6V4h8v2"],
   download: "M3 17v3h18v-3M12 3v11m-4-4l4 4 4-4",
   upload:   "M3 17v3h18v-3M12 15V4m4 4l-4-4-4 4",
-  users:    ["M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2","M23 21v-2a4 4 0 00-3-3.87","M9 7a4 4 0 100 8 4 4 0 000-8z","M16 3.13a4 4 0 010 7.75"],
-  star:     "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-  heart:    "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z",
-  drop:     "M12 2.69l5.66 5.66a8 8 0 11-11.31 0L12 2.69z",
   x:        "M18 6L6 18M6 6l12 12",
   check:    "M20 6L9 17l-5-5",
-  chevronD: "M6 9l6 6 6-6",
   warn:     ["M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z","M12 9v4M12 17h.01"],
-  settings: ["M12 15a3 3 0 100-6 3 3 0 000 6z","M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"],
+  calendar: ["M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"],
 };
 
-// ‚îÄ‚îÄ Constants ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Konstanten ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const METRICS = [
-  { key: 'besucher',       label: 'Besucher',       color: '#6366f1', icon: 'users'  },
-  { key: 'erstbesucher',   label: 'Erstbesucher',   color: '#ec4899', icon: 'star'   },
-  { key: 'entscheidungen', label: 'Entscheidungen', color: '#f59e0b', icon: 'heart'  },
-  { key: 'taufen',         label: 'Taufen',         color: '#10b981', icon: 'drop'   },
+  { key: 'besucher',       label: 'Besucher',       color: '#6366f1' },
+  { key: 'erstbesucher',   label: 'Erstbesucher',   color: '#ec4899' },
+  { key: 'entscheidungen', label: 'Entscheidungen', color: '#f59e0b' },
+  { key: 'taufen',         label: 'Taufen',         color: '#10b981' },
 ];
 
-const DEFAULT_EVENT_TYPES = [
-  { id: 'gottesdienst',      name: 'Gottesdienst',       color: '#6366f1' },
-  { id: 'jugendabend',       name: 'Jugendabend',        color: '#8b5cf6' },
-  { id: 'freizeit',          name: 'Freizeit',           color: '#f59e0b' },
-  { id: 'konferenz',         name: 'Konferenz',          color: '#ec4899' },
-  { id: 'sonderveranst',     name: 'Sonderveranstaltung',color: '#10b981' },
-  { id: 'kleingruppe',       name: 'Kleingruppe',        color: '#06b6d4' },
+const DEFAULT_TYPES = [
+  { id: 'gottesdienst', name: 'Gottesdienst',        color: '#6366f1', isRange: false },
+  { id: 'jugendabend',  name: 'Jugendabend',         color: '#8b5cf6', isRange: false },
+  { id: 'freizeit',     name: 'Freizeit',            color: '#f59e0b', isRange: true  },
+  { id: 'konferenz',    name: 'Konferenz',           color: '#ec4899', isRange: true  },
+  { id: 'sonderveranst',name: 'Sonderveranstaltung', color: '#10b981', isRange: false },
+  { id: 'kleingruppe',  name: 'Kleingruppe',         color: '#06b6d4', isRange: false },
 ];
 
-const CHART_CFG = {
+// ‚îÄ‚îÄ Chart-Konfiguration (Funktion, um Mutation zu verhindern) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const mkCfg = (extra = {}) => ({
+  responsive: true,
+  maintainAspectRatio: false,
   plugins: {
     legend: { labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { size: 12 } } },
     tooltip: {
@@ -88,142 +88,155 @@ const CHART_CFG = {
       bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
       borderWidth: 1, padding: 10, cornerRadius: 8,
     },
+    ...((extra.plugins) || {}),
   },
   scales: {
-    x: { ticks: { color: '#475569', maxRotation: 40, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-    y: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+    x: {
+      ticks: { color: '#475569', maxRotation: 40, font: { size: 11 } },
+      grid: { color: 'rgba(255,255,255,0.04)' },
+    },
+    y: {
+      ticks: { color: '#475569', precision: 0, maxTicksLimit: 7 },
+      grid: { color: 'rgba(255,255,255,0.04)' },
+      beginAtZero: true,
+      grace: '8%',
+    },
+    ...((extra.scales) || {}),
   },
-};
+});
 
-// ‚îÄ‚îÄ Helpers ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const genId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-const today = () => new Date().toISOString().split('T')[0];
+const mkCfgNoScale = () => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { size: 12 } }
+    },
+    tooltip: {
+      backgroundColor: 'rgba(10,10,20,0.97)', titleColor: '#f1f5f9',
+      bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
+      borderWidth: 1, padding: 10, cornerRadius: 8,
+    },
+  },
+});
+
+// ‚îÄ‚îÄ Hilfsfunktionen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const genId  = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const today  = () => new Date().toISOString().split('T')[0];
 const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().split('T')[0];
-const fmtDe = d => d ? (() => { const [y,m,dd]=d.split('-'); return `${dd}.${m}.${y}`; })() : '';
-const fmtShort = d => d ? (() => { const [,m,dd]=d.split('-'); return `${dd}.${m}`; })() : '';
-const monthName = (ym) => {
+const fmtDe  = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return `${dd}.${m}.${y}`; };
+const fmtShort = d => { if (!d) return ''; const [,m,dd] = d.split('-'); return `${dd}.${m}`; };
+const fmtRange = (d, t) => t && t !== d ? `${fmtDe(d)} ‚Äì ${fmtDe(t)}` : fmtDe(d);
+const monthLabel = ym => {
   const [y, m] = ym.split('-');
   return new Date(y, m - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 };
-const firstOfMonth = (ym) => `${ym}-01`;
-const lastOfMonth = (ym) => {
-  const [y, m] = ym.split('-').map(Number);
-  return new Date(y, m, 0).toISOString().split('T')[0];
-};
-const calcTotals = (ents) => METRICS.reduce((acc, m) =>
-  ({ ...acc, [m.key]: ents.reduce((s, e) => s + (Number(e[m.key]) || 0), 0) }), {});
-const delta = (a, b) => b - a;
-const pct = (a, b) => a === 0 ? (b > 0 ? 100 : 0) : Math.round(((b - a) / a) * 100);
+const firstOfMonth = ym => `${ym}-01`;
+const lastOfMonth  = ym => { const [y,m] = ym.split('-').map(Number); return new Date(y,m,0).toISOString().split('T')[0]; };
+const calcTotals = ents => METRICS.reduce((acc,m) => ({ ...acc, [m.key]: ents.reduce((s,e) => s+(Number(e[m.key])||0),0) }), {});
+const dPct = (a,b) => a===0 ? (b>0?100:0) : Math.round(((b-a)/a)*100);
 
 // ‚îÄ‚îÄ ChartCanvas ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const ChartCanvas = ({ id, type, data, options, h = 280 }) => {
-  const ref = useRef(null);
+// Jede Instanz bekommt eine eigene Kopie der Options ‚Äî verhindert Chart.js-Mutation
+const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
+  const ref  = useRef(null);
   const inst = useRef(null);
+
   useEffect(() => {
     if (!ref.current) return;
     if (inst.current) { inst.current.destroy(); inst.current = null; }
     if (!data?.labels?.length) return;
-    inst.current = new Chart(ref.current.getContext('2d'), {
-      type, data,
-      options: { responsive: true, maintainAspectRatio: false, ...options },
-    });
+    inst.current = new Chart(ref.current.getContext('2d'), { type, data, options });
     return () => { if (inst.current) { inst.current.destroy(); inst.current = null; } };
-  }, [id]);
+  }, [id]); // id enth√§lt alle relevanten Abh√§ngigkeiten
+
   if (!data?.labels?.length)
     return <div style={{height:h}} className="flex items-center justify-center text-slate-600 text-sm">Keine Daten im Zeitraum</div>;
   return <canvas ref={ref} style={{ height: h, display: 'block' }} />;
 };
 
-// ‚îÄ‚îÄ Excel Export ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Excel-Export ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const exportExcel = (entries, eventTypes) => {
   const wb = XLSX.utils.book_new();
   const etMap = Object.fromEntries(eventTypes.map(t => [t.id, t.name]));
-  const colW = (...ws) => ws.map(w => ({ wch: w }));
+  const cw = ws => ws.map(w => ({ wch: w }));
 
-  // ---- Sheet 1: Rohdaten ----
-  const rows1 = [
-    ['Datum', 'Event', 'Event-Typ', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen', 'Notizen'],
+  // Sheet 1: Alle Daten
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['Datum', 'Datum bis', 'Event', 'Event-Typ', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen', 'Notizen'],
     ...[...entries].sort((a,b) => b.date.localeCompare(a.date)).map(e => [
-      fmtDe(e.date), e.event || '', etMap[e.eventTypeId] || '',
+      fmtDe(e.date), e.dateTo ? fmtDe(e.dateTo) : '',
+      e.event||'', etMap[e.eventTypeId]||'',
       e.besucher||0, e.erstbesucher||0, e.entscheidungen||0, e.taufen||0, e.notes||'',
     ]),
-  ];
-  const ws1 = XLSX.utils.aoa_to_sheet(rows1);
-  ws1['!cols'] = colW(13, 28, 22, 12, 14, 16, 10, 45);
+  ]);
+  ws1['!cols'] = cw([12,12,28,22,12,14,16,10,45]);
   XLSX.utils.book_append_sheet(wb, ws1, 'Alle Daten');
 
-  // ---- Sheet 2: Zusammenfassung ----
-  const tot  = calcTotals(entries);
-  const rows2 = [
+  // Sheet 2: Zusammenfassung
+  const tot = calcTotals(entries);
+  const ws2 = XLSX.utils.aoa_to_sheet([
     ['REVIVE Youth Stats ‚Äì Zusammenfassung'],
     [],
     ['Erstellt am', fmtDe(today()), '', 'Eintr√§ge gesamt', entries.length],
     [],
-    ['', 'Gesamt', '√ò pro Event', 'Maximum', 'Minimum'],
+    ['Metrik', 'Gesamt', 'Durchschnitt pro Event', 'Maximum', 'Minimum'],
     ...METRICS.map(m => {
       const vals = entries.map(e => Number(e[m.key])||0);
-      return [
-        m.label, tot[m.key],
-        entries.length ? (tot[m.key] / entries.length).toFixed(1) : 0,
+      return [m.label, tot[m.key],
+        entries.length ? +(tot[m.key]/entries.length).toFixed(1) : 0,
         vals.length ? Math.max(...vals) : 0,
-        vals.length ? Math.min(...vals) : 0,
-      ];
+        vals.length ? Math.min(...vals) : 0];
     }),
     [],
     ['Nach Event-Typ', 'Events', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen'],
-    ...[...eventTypes, { id: '', name: '(kein Typ)' }].map(et => {
+    ...[...eventTypes, {id:'', name:'(kein Typ)'}].map(et => {
       const sub = entries.filter(e => (e.eventTypeId||'') === et.id);
-      if (!sub.length && et.id !== '') return null;
-      return [et.name, sub.length, ...METRICS.map(m => sub.reduce((s,e) => s+(Number(e[m.key])||0), 0))];
+      if (!sub.length && et.id) return null;
+      return [et.name, sub.length, ...METRICS.map(m => sub.reduce((s,e)=>s+(Number(e[m.key])||0),0))];
     }).filter(Boolean),
-  ];
-  const ws2 = XLSX.utils.aoa_to_sheet(rows2);
-  ws2['!cols'] = colW(22, 12, 16, 12, 10);
-  ws2['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:4} }];
+  ]);
+  ws2['!cols'] = cw([24,12,24,12,10]);
+  ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Zusammenfassung');
 
-  // ---- Sheet 3: Monatlich ----
-  const monthMap = {};
+  // Sheet 3: Monatlich
+  const mMap = {};
   entries.forEach(e => {
     const k = e.date.slice(0,7);
-    if (!monthMap[k]) monthMap[k] = { count:0, besucher:0, erstbesucher:0, entscheidungen:0, taufen:0 };
-    METRICS.forEach(m => monthMap[k][m.key] += Number(e[m.key])||0);
-    monthMap[k].count++;
+    if (!mMap[k]) mMap[k] = {count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m => mMap[k][m.key] += Number(e[m.key])||0);
+    mMap[k].count++;
   });
-  const rows3 = [
-    ['Monat', 'Eintr√§ge', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen',
-     '√ò Besucher', '√ò Erstbesucher', '√ò Entscheidungen', '√ò Taufen'],
-    ...Object.entries(monthMap).sort().map(([k,v]) => [
-      monthName(k), v.count,
-      v.besucher, v.erstbesucher, v.entscheidungen, v.taufen,
+  const ws3 = XLSX.utils.aoa_to_sheet([
+    ['Monat','Eintr√§ge','Besucher','Erstbesucher','Entscheidungen','Taufen','√ò Besucher','√ò Erstbesucher','√ò Entscheidungen','√ò Taufen'],
+    ...Object.entries(mMap).sort().map(([k,v]) => [
+      monthLabel(k), v.count, v.besucher, v.erstbesucher, v.entscheidungen, v.taufen,
       +(v.besucher/v.count).toFixed(1), +(v.erstbesucher/v.count).toFixed(1),
       +(v.entscheidungen/v.count).toFixed(1), +(v.taufen/v.count).toFixed(1),
     ]),
-    [],
-    ['GESAMT', entries.length, ...METRICS.map(m => tot[m.key])],
-  ];
-  const ws3 = XLSX.utils.aoa_to_sheet(rows3);
-  ws3['!cols'] = colW(22,10,12,14,16,10,14,16,18,12);
+    [], ['Gesamt', entries.length, ...METRICS.map(m=>tot[m.key])],
+  ]);
+  ws3['!cols'] = cw([22,10,12,14,16,10,14,16,18,12]);
   XLSX.utils.book_append_sheet(wb, ws3, 'Monatlich');
 
-  // ---- Sheet 4: J√§hrlich ----
-  const yearMap = {};
+  // Sheet 4: J√§hrlich
+  const yMap = {};
   entries.forEach(e => {
     const k = e.date.slice(0,4);
-    if (!yearMap[k]) yearMap[k] = { count:0, besucher:0, erstbesucher:0, entscheidungen:0, taufen:0 };
-    METRICS.forEach(m => yearMap[k][m.key] += Number(e[m.key])||0);
-    yearMap[k].count++;
+    if (!yMap[k]) yMap[k] = {count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m => yMap[k][m.key] += Number(e[m.key])||0);
+    yMap[k].count++;
   });
-  const rows4 = [
-    ['Jahr', 'Events', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen',
-     '√ò Besucher/Event', '√ò Erstbesucher/Event'],
-    ...Object.entries(yearMap).sort().map(([k,v]) => [
+  const ws4 = XLSX.utils.aoa_to_sheet([
+    ['Jahr','Events','Besucher','Erstbesucher','Entscheidungen','Taufen','√ò Besucher/Event','√ò Erstbesucher/Event'],
+    ...Object.entries(yMap).sort().map(([k,v]) => [
       k, v.count, v.besucher, v.erstbesucher, v.entscheidungen, v.taufen,
       +(v.besucher/v.count).toFixed(1), +(v.erstbesucher/v.count).toFixed(1),
     ]),
-  ];
-  const ws4 = XLSX.utils.aoa_to_sheet(rows4);
-  ws4['!cols'] = colW(8,8,12,14,16,10,18,20);
+  ]);
+  ws4['!cols'] = cw([8,8,12,14,16,10,18,20]);
   XLSX.utils.book_append_sheet(wb, ws4, 'J√§hrlich');
 
   XLSX.writeFile(wb, `revive-stats-${today()}.xlsx`);
@@ -231,43 +244,39 @@ const exportExcel = (entries, eventTypes) => {
 
 // ‚îÄ‚îÄ Dashboard ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const Dashboard = ({ entries, eventTypes }) => {
-  const [from, setFrom]       = useState(daysAgo(90));
-  const [to, setTo]           = useState(today());
-  const [preset, setPreset]   = useState('90d');
-  const [active, setActive]   = useState(METRICS.map(m => m.key));
-  const [mainView, setMainView] = useState('bar');
-  const [etFilter, setEtFilter] = useState('all');
+  const [from,    setFrom]    = useState(daysAgo(90));
+  const [to,      setTo]      = useState(today());
+  const [preset,  setPreset]  = useState('90d');
+  const [active,  setActive]  = useState(METRICS.map(m => m.key));
+  const [view,    setView]    = useState('bar');
+  const [etF,     setEtF]     = useState('all');
 
   const applyPreset = p => {
     setPreset(p);
     const t = today();
-    let f;
+    let f = daysAgo(90);
     if (p==='30d')  f = daysAgo(30);
-    if (p==='90d')  f = daysAgo(90);
     if (p==='year') f = `${new Date().getFullYear()}-01-01`;
-    if (p==='all')  f = entries.length ? entries.reduce((mn,e) => e.date<mn?e.date:mn, entries[0].date) : '2020-01-01';
+    if (p==='all')  f = entries.length ? entries.reduce((mn,e)=>e.date<mn?e.date:mn, entries[0].date) : '2020-01-01';
     setFrom(f); setTo(t);
   };
 
   const filtered = useMemo(() => {
-    let list = [...entries].filter(e => e.date >= from && e.date <= to);
-    if (etFilter !== 'all') list = list.filter(e => e.eventTypeId === etFilter);
+    let list = [...entries].filter(e => e.date>=from && e.date<=to);
+    if (etF !== 'all') list = list.filter(e => e.eventTypeId===etF);
     return list.sort((a,b) => a.date.localeCompare(b.date));
-  }, [entries, from, to, etFilter]);
+  }, [entries, from, to, etF]);
 
-  const totals = useMemo(() => calcTotals(filtered), [filtered]);
+  const totals  = useMemo(() => calcTotals(filtered), [filtered]);
+  const totKey  = METRICS.map(m=>totals[m.key]).join('-'); // f√ºr Chart-IDs
   const activeM = METRICS.filter(m => active.includes(m.key));
 
-  const labels = filtered.map(e => {
-    const et = eventTypes.find(t => t.id === e.eventTypeId);
-    return fmtShort(e.date) + (e.event ? ` ¬∑ ${e.event.slice(0,10)}` : '');
-  });
+  const labels = filtered.map(e => fmtShort(e.date) + (e.event ? ` ¬∑ ${e.event.slice(0,10)}` : ''));
 
-  const lineData = (fill=false) => ({
+  const makeLineData = (fill=false) => ({
     labels,
     datasets: activeM.map(m => ({
-      label: m.label,
-      data: filtered.map(e => Number(e[m.key])||0),
+      label: m.label, data: filtered.map(e=>Number(e[m.key])||0),
       borderColor: m.color, backgroundColor: m.color+'22',
       fill, tension: 0.4, pointRadius: 4, pointHoverRadius: 6,
     })),
@@ -276,8 +285,7 @@ const Dashboard = ({ entries, eventTypes }) => {
   const barData = {
     labels,
     datasets: activeM.map(m => ({
-      label: m.label,
-      data: filtered.map(e => Number(e[m.key])||0),
+      label: m.label, data: filtered.map(e=>Number(e[m.key])||0),
       backgroundColor: m.color+'bb', borderRadius: 4,
     })),
   };
@@ -288,7 +296,7 @@ const Dashboard = ({ entries, eventTypes }) => {
       let c = 0;
       return {
         label: m.label,
-        data: filtered.map(e => { c += Number(e[m.key])||0; return c; }),
+        data: filtered.map(e=>{ c += Number(e[m.key])||0; return c; }),
         borderColor: m.color, backgroundColor: m.color+'18',
         fill: true, tension: 0.4, pointRadius: 3,
       };
@@ -296,39 +304,39 @@ const Dashboard = ({ entries, eventTypes }) => {
   };
 
   const donutData = (() => {
-    const vals = METRICS.map(m => totals[m.key]);
+    const vals = METRICS.map(m=>totals[m.key]);
     if (!vals.some(v=>v>0)) return null;
     return {
-      labels: METRICS.map(m => m.label),
-      datasets: [{ data: vals, backgroundColor: METRICS.map(m => m.color+'bb'), borderColor: METRICS.map(m => m.color), borderWidth: 2, hoverOffset: 6 }],
+      labels: METRICS.map(m=>m.label),
+      datasets: [{ data: vals, backgroundColor: METRICS.map(m=>m.color+'bb'), borderColor: METRICS.map(m=>m.color), borderWidth: 2, hoverOffset: 6 }],
     };
   })();
 
   const etData = (() => {
-    const types = eventTypes.filter(et => filtered.some(e => e.eventTypeId === et.id));
+    const types = eventTypes.filter(et => filtered.some(e=>e.eventTypeId===et.id));
     if (!types.length) return null;
     return {
-      labels: types.map(t => t.name),
+      labels: types.map(t=>t.name),
       datasets: activeM.map(m => ({
         label: m.label,
-        data: types.map(t => filtered.filter(e=>e.eventTypeId===t.id).reduce((s,e)=>s+(Number(e[m.key])||0),0)),
+        data: types.map(t=>filtered.filter(e=>e.eventTypeId===t.id).reduce((s,e)=>s+(Number(e[m.key])||0),0)),
         backgroundColor: m.color+'bb', borderRadius: 4,
       })),
     };
   })();
 
-  const mainD  = mainView==='bar' ? barData : mainView==='area' ? lineData(true) : lineData(false);
-  const mainT  = mainView==='bar' ? 'bar' : 'line';
-  const mainId = `main-${mainView}-${from}-${to}-${active.join()}-${etFilter}`;
+  const mainData = view==='bar' ? barData : view==='area' ? makeLineData(true) : makeLineData(false);
+  const mainType = view==='bar' ? 'bar' : 'line';
+  const mainId   = `main-${view}-${from}-${to}-${active.join()}-${etF}-${totKey}`;
 
-  const Preset = ({p,l}) => (
+  const toggle = k => setActive(p => p.includes(k) ? p.filter(x=>x!==k) : [...p,k]);
+
+  const PreBtn = ({p,l}) => (
     <button onClick={()=>applyPreset(p)}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${preset===p?'bg-violet-600 text-white':'text-slate-400 bg-white/5 hover:bg-white/10'}`}>
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${preset===p?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
       {l}
     </button>
   );
-
-  const toggle = k => setActive(p => p.includes(k)?p.filter(x=>x!==k):[...p,k]);
 
   return (
     <div className="space-y-5 up">
@@ -337,11 +345,13 @@ const Dashboard = ({ entries, eventTypes }) => {
         <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr√§ge im Zeitraum ¬∑ {entries.length} gesamt</p>
       </div>
 
-      {/* Filter */}
+      {/* Filter-Leiste */}
       <div className="glass rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
-          <Preset p="30d" l="30 Tage"/><Preset p="90d" l="90 Tage"/>
-          <Preset p="year" l="Dieses Jahr"/><Preset p="all" l="Alle"/>
+          <PreBtn p="30d" l="30 Tage"/>
+          <PreBtn p="90d" l="90 Tage"/>
+          <PreBtn p="year" l="Dieses Jahr"/>
+          <PreBtn p="all" l="Alle"/>
           <div className="flex gap-2 ml-auto flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-slate-500 text-xs">Von</span>
@@ -355,10 +365,9 @@ const Dashboard = ({ entries, eventTypes }) => {
             </div>
           </div>
         </div>
-
         <div className="flex gap-2 flex-wrap items-center">
           <span className="text-slate-600 text-xs">Metriken:</span>
-          {METRICS.map(m => (
+          {METRICS.map(m=>(
             <button key={m.key} onClick={()=>toggle(m.key)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
               style={{
@@ -366,97 +375,94 @@ const Dashboard = ({ entries, eventTypes }) => {
                 border: `1px solid ${active.includes(m.key) ? m.color+'60' : 'transparent'}`,
                 color: active.includes(m.key) ? m.color : '#475569',
               }}>
-              <span className="metric-dot" style={{background: active.includes(m.key)?m.color:'#475569'}}/>
+              <span className="dot" style={{background: active.includes(m.key)?m.color:'#475569'}}/>
               {m.label}
             </button>
           ))}
           <div className="ml-auto">
-            <select value={etFilter} onChange={e=>setEtFilter(e.target.value)}
+            <select value={etF} onChange={e=>setEtF(e.target.value)}
               className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
               <option value="all">Alle Event-Typen</option>
-              {eventTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
         </div>
       </div>
 
-      {/* KPI cards */}
+      {/* KPI-Karten */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {METRICS.map(m => (
+        {METRICS.map(m=>(
           <div key={m.key} className="glass glow rounded-2xl p-4 up">
             <div className="flex items-center gap-2 mb-2">
-              <span className="metric-dot" style={{width:10,height:10,background:m.color}}/>
+              <span className="dot" style={{width:10,height:10,background:m.color}}/>
               <span className="text-slate-400 text-xs font-medium">{m.label}</span>
             </div>
             <div className="text-3xl font-bold" style={{color:m.color}}>{totals[m.key]}</div>
             <div className="text-slate-600 text-xs mt-1">
-              {filtered.length ? `√ò ${(totals[m.key]/filtered.length).toFixed(1)} / Event` : '‚Äî'}
+              {filtered.length ? `√ò ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '‚Äî'}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Main chart */}
+      {/* Hauptgrafik */}
       <div className="glass rounded-2xl p-5 glow">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="font-semibold text-slate-200 text-sm">Entwicklung √ºber Zeit</h3>
           <div className="flex gap-1.5">
             {[['bar','Balken'],['line','Linie'],['area','Fl√§che']].map(([v,l])=>(
-              <button key={v} onClick={()=>setMainView(v)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${mainView===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+              <button key={v} onClick={()=>setView(v)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
                 {l}
               </button>
             ))}
           </div>
         </div>
-        <ChartCanvas id={mainId} type={mainT} data={filtered.length?mainD:null} options={CHART_CFG} h={280}/>
+        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={260}/>
       </div>
 
-      {/* Donut + Cumulative */}
+      {/* Verteilung + Kumulativ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Verteilung gesamt</h3>
-          <ChartCanvas id={`donut-${from}-${to}-${etFilter}`} type="doughnut"
-            data={donutData} options={{plugins:CHART_CFG.plugins}} h={240}/>
+          <ChartCanvas id={`donut-${from}-${to}-${etF}-${totKey}`} type="doughnut"
+            data={donutData} options={mkCfgNoScale()} h={220}/>
         </div>
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Kumulativer Verlauf</h3>
-          <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etFilter}`} type="line"
-            data={filtered.length?cumulData:null} options={CHART_CFG} h={240}/>
+          <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line"
+            data={filtered.length?cumulData:null} options={mkCfg()} h={220}/>
         </div>
       </div>
 
-      {/* By event type */}
-      {etFilter === 'all' && etData && (
+      {/* Nach Event-Typ */}
+      {etF==='all' && etData && (
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Vergleich nach Event-Typ</h3>
-          <ChartCanvas id={`et-${from}-${to}-${active.join()}`} type="bar"
-            data={etData} options={{...CHART_CFG, plugins:{...CHART_CFG.plugins, legend:{...CHART_CFG.plugins.legend}}}} h={240}/>
+          <ChartCanvas id={`et-${from}-${to}-${active.join()}-${totKey}`} type="bar"
+            data={etData} options={mkCfg()} h={220}/>
         </div>
       )}
 
-      {/* Individual metrics */}
-      {activeM.length > 0 && (
+      {/* Einzelne Metriken */}
+      {activeM.length>0 && (
         <div>
           <h3 className="font-semibold text-slate-200 text-sm mb-3">Einzelne Metriken</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activeM.map(m => {
               const d = filtered.length ? {
                 labels: filtered.map(e=>fmtShort(e.date)),
-                datasets: [{ label:m.label, data:filtered.map(e=>Number(e[m.key])||0), backgroundColor:m.color+'aa', borderRadius:4 }],
+                datasets: [{label:m.label, data:filtered.map(e=>Number(e[m.key])||0), backgroundColor:m.color+'aa', borderRadius:4}],
               } : null;
               return (
                 <div key={m.key} className="glass rounded-2xl p-4" style={{border:`1px solid ${m.color}25`}}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="metric-dot" style={{background:m.color}}/>
+                    <span className="dot" style={{background:m.color}}/>
                     <span className="font-semibold text-sm" style={{color:m.color}}>{m.label}</span>
                     <span className="ml-auto text-2xl font-bold" style={{color:m.color}}>{totals[m.key]}</span>
                   </div>
-                  <ChartCanvas id={`${m.key}-${from}-${to}-${etFilter}`} type="bar" data={d}
-                    options={{plugins:{legend:{display:false},tooltip:CHART_CFG.plugins.tooltip},
-                      scales:{x:{ticks:{color:'#475569',font:{size:10}},grid:{display:false}},
-                        y:{ticks:{color:'#475569',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:true}}}}
-                    h={160}/>
+                  <ChartCanvas id={`${m.key}-${from}-${to}-${etF}-${totals[m.key]}`} type="bar" data={d}
+                    options={mkCfg({plugins:{legend:{display:false}}})} h={150}/>
                 </div>
               );
             })}
@@ -464,15 +470,15 @@ const Dashboard = ({ entries, eventTypes }) => {
         </div>
       )}
 
-      {/* Table */}
-      {filtered.length > 0 && (
+      {/* Tabelle */}
+      {filtered.length>0 && (
         <div>
           <h3 className="font-semibold text-slate-200 text-sm mb-3">Eintr√§ge im Zeitraum</h3>
           <div className="glass rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/6">
+                  <tr style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
                     <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Datum</th>
                     <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Event</th>
                     <th className="text-left px-3 py-2.5 text-slate-500 text-xs font-medium">Typ</th>
@@ -483,13 +489,14 @@ const Dashboard = ({ entries, eventTypes }) => {
                   {[...filtered].reverse().slice(0,15).map((e,i)=>{
                     const et = eventTypes.find(t=>t.id===e.eventTypeId);
                     return (
-                      <tr key={e.id} className={i%2===0?'':'bg-white/[0.015]'} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-                        <td className="px-4 py-2 text-slate-300 whitespace-nowrap">{fmtDe(e.date)}</td>
-                        <td className="px-4 py-2 text-slate-400 max-w-[160px] truncate">{e.event||'‚Äî'}</td>
+                      <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)', background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
+                        <td className="px-4 py-2 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date, e.dateTo)}</td>
+                        <td className="px-4 py-2 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'‚Äî'}</td>
                         <td className="px-3 py-2">
-                          {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span> : <span className="text-slate-600 text-xs">‚Äî</span>}
+                          {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>
+                              : <span className="text-slate-700 text-xs">‚Äî</span>}
                         </td>
-                        {METRICS.map(m=><td key={m.key} className="px-3 py-2 text-right font-semibold" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
+                        {METRICS.map(m=><td key={m.key} className="px-3 py-2 text-right font-semibold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
                       </tr>
                     );
                   })}
@@ -503,73 +510,62 @@ const Dashboard = ({ entries, eventTypes }) => {
   );
 };
 
-// ‚îÄ‚îÄ Comparison ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Zeitraum-Vergleich ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const Comparison = ({ entries, eventTypes }) => {
-  const [mode, setMode]       = useState('month');
-  const [ymA, setYmA]         = useState('');
-  const [ymB, setYmB]         = useState('');
-  const [yearA, setYearA]     = useState('');
-  const [yearB, setYearB]     = useState('');
-  const [fromA, setFromA]     = useState(daysAgo(60));
-  const [toA, setToA]         = useState(today());
-  const [fromB, setFromB]     = useState(daysAgo(120));
-  const [toB, setToB]         = useState(daysAgo(61));
-  const [etFilter, setEtFilter] = useState('all');
+  const [mode,   setMode]  = useState('month');
+  const [ymA,    setYmA]   = useState('');
+  const [ymB,    setYmB]   = useState('');
+  const [yearA,  setYearA] = useState('');
+  const [yearB,  setYearB] = useState('');
+  const [fromA,  setFromA] = useState(daysAgo(60));
+  const [toA,    setToA]   = useState(today());
+  const [fromB,  setFromB] = useState(daysAgo(120));
+  const [toB,    setToB]   = useState(daysAgo(61));
+  const [etF,    setEtF]   = useState('all');
 
-  const availableYM = useMemo(()=>{
-    const s=new Set(entries.map(e=>e.date.slice(0,7)));
-    return [...s].sort().reverse();
-  },[entries]);
-
-  const availableYears = useMemo(()=>{
-    const s=new Set(entries.map(e=>e.date.slice(0,4)));
-    return [...s].sort().reverse();
-  },[entries]);
-
-  const getEntries = (fA, tA) => {
-    let list = entries.filter(e => e.date>=fA && e.date<=tA);
-    if (etFilter!=='all') list = list.filter(e=>e.eventTypeId===etFilter);
-    return list;
-  };
+  const availYM    = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,7)))].sort().reverse(),[entries]);
+  const availYears = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,4)))].sort().reverse(),[entries]);
 
   const [rA, rB] = useMemo(()=>{
+    const get = (f,t) => {
+      let list = entries.filter(e=>e.date>=f&&e.date<=t);
+      if (etF!=='all') list = list.filter(e=>e.eventTypeId===etF);
+      return list;
+    };
     if (mode==='month') {
-      if (!ymA || !ymB) return [[],[]];
-      return [getEntries(firstOfMonth(ymA),lastOfMonth(ymA)), getEntries(firstOfMonth(ymB),lastOfMonth(ymB))];
+      if (!ymA||!ymB) return [[],[]];
+      return [get(firstOfMonth(ymA),lastOfMonth(ymA)), get(firstOfMonth(ymB),lastOfMonth(ymB))];
     }
     if (mode==='year') {
-      if (!yearA || !yearB) return [[],[]];
-      return [getEntries(`${yearA}-01-01`,`${yearA}-12-31`), getEntries(`${yearB}-01-01`,`${yearB}-12-31`)];
+      if (!yearA||!yearB) return [[],[]];
+      return [get(`${yearA}-01-01`,`${yearA}-12-31`), get(`${yearB}-01-01`,`${yearB}-12-31`)];
     }
-    return [getEntries(fromA,toA), getEntries(fromB,toB)];
-  },[entries, mode, ymA, ymB, yearA, yearB, fromA, toA, fromB, toB, etFilter]);
+    return [get(fromA,toA), get(fromB,toB)];
+  },[entries, mode, ymA, ymB, yearA, yearB, fromA, toA, fromB, toB, etF]);
 
   const tA = useMemo(()=>calcTotals(rA),[rA]);
   const tB = useMemo(()=>calcTotals(rB),[rB]);
 
-  const labelA = mode==='month' ? (ymA?monthName(ymA):'Zeitraum A') : mode==='year' ? (yearA||'Jahr A') : 'Zeitraum A';
-  const labelB = mode==='month' ? (ymB?monthName(ymB):'Zeitraum B') : mode==='year' ? (yearB||'Jahr B') : 'Zeitraum B';
+  const lA = mode==='month'?(ymA?monthLabel(ymA):'Zeitraum A'):mode==='year'?(yearA||'Jahr A'):'Zeitraum A';
+  const lB = mode==='month'?(ymB?monthLabel(ymB):'Zeitraum B'):mode==='year'?(yearB||'Jahr B'):'Zeitraum B';
+  const hasData = rA.length>0||rB.length>0;
 
-  const hasData = rA.length > 0 || rB.length > 0;
-
-  const compBarData = hasData ? {
+  const compData = hasData ? {
     labels: METRICS.map(m=>m.label),
     datasets: [
-      { label: labelA, data: METRICS.map(m=>tA[m.key]), backgroundColor: '#6366f1bb', borderRadius:4 },
-      { label: labelB, data: METRICS.map(m=>tB[m.key]), backgroundColor: '#ec4899bb', borderRadius:4 },
+      {label:lA, data:METRICS.map(m=>tA[m.key]), backgroundColor:'#6366f1bb', borderRadius:4},
+      {label:lB, data:METRICS.map(m=>tB[m.key]), backgroundColor:'#ec4899bb', borderRadius:4},
     ],
   } : null;
 
+  const compId = `cmp-${mode}-${ymA}-${ymB}-${yearA}-${yearB}-${fromA}-${toA}-${fromB}-${toB}-${etF}`;
   const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
 
-  const DeltaBadge = ({a,b}) => {
-    const d = delta(a,b); const p = pct(a,b);
-    if (a===0 && b===0) return <span className="text-slate-600 text-xs">‚Äî</span>;
-    return (
-      <span className={`text-xs font-semibold ${d>0?'text-emerald-400':d<0?'text-red-400':'text-slate-500'}`}>
-        {d>0?'+':''}{d} ({d>0?'+':''}{p}%)
-      </span>
-    );
+  const Delta = ({a,b}) => {
+    const d=b-a, p=dPct(a,b);
+    if (a===0&&b===0) return <span className="text-slate-700 text-xs">‚Äî</span>;
+    const cls = d>0?'text-emerald-400':d<0?'text-red-400':'text-slate-500';
+    return <span className={`text-xs font-semibold ${cls}`}>{d>0?'+':''}{d} ({d>0?'+':''}{p}%)</span>;
   };
 
   return (
@@ -579,9 +575,8 @@ const Comparison = ({ entries, eventTypes }) => {
         <p className="text-slate-500 text-sm mt-0.5">Zwei Zeitr√§ume direkt nebeneinander vergleichen</p>
       </div>
 
-      {/* Mode + filter */}
       <div className="glass rounded-2xl p-5 space-y-4">
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {[['month','Nach Monat'],['year','Nach Jahr'],['custom','Benutzerdefiniert']].map(([v,l])=>(
             <button key={v} onClick={()=>setMode(v)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${mode===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
@@ -589,8 +584,7 @@ const Comparison = ({ entries, eventTypes }) => {
             </button>
           ))}
           <div className="ml-auto">
-            <select value={etFilter} onChange={e=>setEtFilter(e.target.value)}
-              className={inp+" text-xs py-1.5"}>
+            <select value={etF} onChange={e=>setEtF(e.target.value)} className={inp+" text-xs py-1.5"}>
               <option value="all">Alle Event-Typen</option>
               {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -603,50 +597,48 @@ const Comparison = ({ entries, eventTypes }) => {
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
               <select value={ymA} onChange={e=>setYmA(e.target.value)} className={inp+" w-full"}>
                 <option value="">‚Äî Monat w√§hlen ‚Äî</option>
-                {availableYM.map(ym=><option key={ym} value={ym}>{monthName(ym)}</option>)}
+                {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
               <select value={ymB} onChange={e=>setYmB(e.target.value)} className={inp+" w-full"}>
                 <option value="">‚Äî Monat w√§hlen ‚Äî</option>
-                {availableYM.map(ym=><option key={ym} value={ym}>{monthName(ym)}</option>)}
+                {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
               </select>
             </div>
           </div>
         )}
-
         {mode==='year' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Jahr A</label>
               <select value={yearA} onChange={e=>setYearA(e.target.value)} className={inp+" w-full"}>
                 <option value="">‚Äî Jahr w√§hlen ‚Äî</option>
-                {availableYears.map(y=><option key={y} value={y}>{y}</option>)}
+                {availYears.map(y=><option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Jahr B</label>
               <select value={yearB} onChange={e=>setYearB(e.target.value)} className={inp+" w-full"}>
                 <option value="">‚Äî Jahr w√§hlen ‚Äî</option>
-                {availableYears.map(y=><option key={y} value={y}>{y}</option>)}
+                {availYears.map(y=><option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           </div>
         )}
-
         {mode==='custom' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="block text-slate-500 text-xs">Zeitraum A</label>
+            <div>
+              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
               <div className="flex gap-2 items-center">
                 <input type="date" value={fromA} onChange={e=>setFromA(e.target.value)} className={inp+" flex-1"}/>
                 <span className="text-slate-600 text-xs">‚Äì</span>
                 <input type="date" value={toA} onChange={e=>setToA(e.target.value)} className={inp+" flex-1"}/>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="block text-slate-500 text-xs">Zeitraum B</label>
+            <div>
+              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
               <div className="flex gap-2 items-center">
                 <input type="date" value={fromB} onChange={e=>setFromB(e.target.value)} className={inp+" flex-1"}/>
                 <span className="text-slate-600 text-xs">‚Äì</span>
@@ -657,141 +649,135 @@ const Comparison = ({ entries, eventTypes }) => {
         )}
       </div>
 
-      {/* Comparison table */}
-      {hasData && (
-        <div className="glass rounded-2xl p-5 glow">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8">
-                <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
-                <th className="text-right pb-3 font-semibold text-indigo-400 text-sm">{labelA} <span className="text-slate-600 text-xs font-normal">({rA.length} Events)</span></th>
-                <th className="text-right pb-3 font-semibold text-pink-400 text-sm">{labelB} <span className="text-slate-600 text-xs font-normal">({rB.length} Events)</span></th>
-                <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
-              </tr>
-            </thead>
-            <tbody>
-              {METRICS.map(m=>(
-                <tr key={m.key} className="border-t border-white/4">
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="metric-dot" style={{background:m.color}}/>
-                      <span className="text-slate-300 font-medium">{m.label}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 text-right text-2xl font-bold text-indigo-300">{tA[m.key]}</td>
-                  <td className="py-3 text-right text-2xl font-bold text-pink-300">{tB[m.key]}</td>
-                  <td className="py-3 text-right"><DeltaBadge a={tA[m.key]} b={tB[m.key]}/></td>
+      {hasData ? (
+        <>
+          <div className="glass rounded-2xl p-5 glow">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                  <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
+                  <th className="text-right pb-3 font-semibold text-indigo-400">{lA}<span className="text-slate-600 text-xs font-normal ml-1">({rA.length} Events)</span></th>
+                  <th className="text-right pb-3 font-semibold text-pink-400">{lB}<span className="text-slate-600 text-xs font-normal ml-1">({rB.length} Events)</span></th>
+                  <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
                 </tr>
-              ))}
-              <tr className="border-t border-white/8">
-                <td className="py-3 text-slate-500 text-xs">Eintr√§ge</td>
-                <td className="py-3 text-right text-slate-400 font-medium">{rA.length}</td>
-                <td className="py-3 text-right text-slate-400 font-medium">{rB.length}</td>
-                <td className="py-3 text-right"><DeltaBadge a={rA.length} b={rB.length}/></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Bar chart */}
-      {hasData && compBarData && (
-        <div className="glass rounded-2xl p-5 glow">
-          <h3 className="font-semibold text-slate-200 text-sm mb-4">{labelA} vs {labelB}</h3>
-          <ChartCanvas id={`comp-${mode}-${ymA}-${ymB}-${yearA}-${yearB}-${fromA}-${toA}-${fromB}-${toB}-${etFilter}`}
-            type="bar" data={compBarData} options={CHART_CFG} h={260}/>
-        </div>
-      )}
-
-      {/* Averages comparison */}
-      {hasData && rA.length > 0 && rB.length > 0 && (
-        <div className="glass rounded-2xl p-5 glow">
-          <h3 className="font-semibold text-slate-200 text-sm mb-4">Durchschnitt pro Event</h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8">
-                <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
-                <th className="text-right pb-3 text-indigo-400 text-xs font-medium">{labelA}</th>
-                <th className="text-right pb-3 text-pink-400 text-xs font-medium">{labelB}</th>
-                <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
-              </tr>
-            </thead>
-            <tbody>
-              {METRICS.map(m=>{
-                const avgA = rA.length ? tA[m.key]/rA.length : 0;
-                const avgB = rB.length ? tB[m.key]/rB.length : 0;
-                return (
-                  <tr key={m.key} className="border-t border-white/4">
-                    <td className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="metric-dot" style={{background:m.color}}/>
-                        <span className="text-slate-300">{m.label}</span>
-                      </div>
+              </thead>
+              <tbody>
+                {METRICS.map(m=>(
+                  <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300 font-medium">{m.label}</span></div>
                     </td>
-                    <td className="py-2.5 text-right text-slate-200 font-semibold">{avgA.toFixed(1)}</td>
-                    <td className="py-2.5 text-right text-slate-200 font-semibold">{avgB.toFixed(1)}</td>
-                    <td className="py-2.5 text-right">
-                      <span className={`text-xs font-semibold ${(avgB-avgA)>0?'text-emerald-400':(avgB-avgA)<0?'text-red-400':'text-slate-500'}`}>
-                        {(avgB-avgA)>0?'+':''}{(avgB-avgA).toFixed(1)}
-                      </span>
-                    </td>
+                    <td className="py-3 text-right text-2xl font-bold text-indigo-300">{tA[m.key]}</td>
+                    <td className="py-3 text-right text-2xl font-bold text-pink-300">{tB[m.key]}</td>
+                    <td className="py-3 text-right"><Delta a={tA[m.key]} b={tB[m.key]}/></td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                ))}
+                <tr style={{borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+                  <td className="py-2 text-slate-500 text-xs">Eintr√§ge gesamt</td>
+                  <td className="py-2 text-right text-slate-400 font-medium">{rA.length}</td>
+                  <td className="py-2 text-right text-slate-400 font-medium">{rB.length}</td>
+                  <td className="py-2 text-right"><Delta a={rA.length} b={rB.length}/></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      {!hasData && (
-        <div className="glass rounded-2xl py-16 text-center text-slate-600">
-          <div className="text-slate-500 font-medium mb-1">Zeitr√§ume ausw√§hlen</div>
-          <div className="text-sm">W√§hle oben zwei Zeitr√§ume zum Vergleichen</div>
+          {compData && (
+            <div className="glass rounded-2xl p-5 glow">
+              <h3 className="font-semibold text-slate-200 text-sm mb-4">{lA} vs. {lB}</h3>
+              <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={240}/>
+            </div>
+          )}
+
+          {rA.length>0 && rB.length>0 && (
+            <div className="glass rounded-2xl p-5 glow">
+              <h3 className="font-semibold text-slate-200 text-sm mb-4">Durchschnitt pro Event</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                    <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
+                    <th className="text-right pb-3 text-indigo-400 text-xs font-medium">{lA}</th>
+                    <th className="text-right pb-3 text-pink-400 text-xs font-medium">{lB}</th>
+                    <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {METRICS.map(m=>{
+                    const aA=rA.length?tA[m.key]/rA.length:0;
+                    const aB=rB.length?tB[m.key]/rB.length:0;
+                    const diff=aB-aA;
+                    return (
+                      <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+                        <td className="py-2.5"><div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300">{m.label}</span></div></td>
+                        <td className="py-2.5 text-right text-slate-200 font-semibold">{aA.toFixed(1)}</td>
+                        <td className="py-2.5 text-right text-slate-200 font-semibold">{aB.toFixed(1)}</td>
+                        <td className="py-2.5 text-right"><span className={`text-xs font-semibold ${diff>0?'text-emerald-400':diff<0?'text-red-400':'text-slate-500'}`}>{diff>0?'+':''}{diff.toFixed(1)}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="glass rounded-2xl py-16 text-center">
+          <div className="text-slate-400 font-medium mb-1">Zeitr√§ume ausw√§hlen</div>
+          <div className="text-slate-600 text-sm">W√§hle oben zwei Zeitr√§ume zum Vergleichen aus</div>
         </div>
       )}
     </div>
   );
 };
 
-// ‚îÄ‚îÄ EntryForm ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Eintrag-Formular ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
   const [form, setForm] = useState({
-    date: today(), event: '', eventTypeId: '',
+    date: today(), dateTo: '', event: '', eventTypeId: '',
     besucher: '', erstbesucher: '', entscheidungen: '', taufen: '',
     notes: '', ...initialData,
   });
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
+
+  const selectedType  = eventTypes.find(t=>t.id===form.eventTypeId);
+  const isRangeType   = selectedType?.isRange;
 
   const handleSubmit = e => {
     e.preventDefault();
     if (!form.date) return;
     onSave({
       ...form,
-      besucher: Number(form.besucher)||0,
-      erstbesucher: Number(form.erstbesucher)||0,
+      dateTo: isRangeType ? (form.dateTo||form.date) : '',
+      besucher:       Number(form.besucher)||0,
+      erstbesucher:   Number(form.erstbesucher)||0,
       entscheidungen: Number(form.entscheidungen)||0,
-      taufen: Number(form.taufen)||0,
+      taufen:         Number(form.taufen)||0,
     });
   };
 
   const inp = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 transition-all text-sm";
-  const selectedType = eventTypes.find(t=>t.id===form.eventTypeId);
 
   return (
     <div className="up max-w-2xl">
       <div className="mb-5">
         <h1 className="text-xl font-bold grad">{initialData?'Eintrag bearbeiten':'Neuer Eintrag'}</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Gib die Zahlen f√ºr dein Event ein</p>
+        <p className="text-slate-500 text-sm mt-0.5">Zahlen f√ºr ein Event erfassen</p>
       </div>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="glass rounded-2xl p-5 glow space-y-4">
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Event</p>
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Event-Details</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5">Datum *</label>
+              <label className="block text-slate-400 text-xs mb-1.5">{isRangeType ? 'Startdatum *' : 'Datum *'}</label>
               <input type="date" value={form.date} onChange={e=>set('date',e.target.value)} className={inp} required/>
             </div>
+            {isRangeType && (
+              <div>
+                <label className="block text-slate-400 text-xs mb-1.5">Enddatum</label>
+                <input type="date" value={form.dateTo} min={form.date}
+                  onChange={e=>set('dateTo',e.target.value)} className={inp}/>
+              </div>
+            )}
             <div>
               <label className="block text-slate-400 text-xs mb-1.5">Event-Name</label>
               <input type="text" value={form.event} onChange={e=>set('event',e.target.value)}
@@ -801,10 +787,18 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
           <div>
             <label className="block text-slate-400 text-xs mb-1.5">Event-Typ</label>
             <select value={form.eventTypeId} onChange={e=>set('eventTypeId',e.target.value)}
-              className={inp} style={selectedType?{borderColor:selectedType.color+'60',color:selectedType.color}:{}}>
+              className={inp}
+              style={selectedType?{borderColor:selectedType.color+'60',color:selectedType.color}:{}}>
               <option value="">‚Äî Kein Typ ‚Äî</option>
-              {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+              {eventTypes.map(t=>(
+                <option key={t.id} value={t.id}>{t.name}{t.isRange?' (Zeitraum)':''}</option>
+              ))}
             </select>
+            {isRangeType && (
+              <p className="text-amber-500/70 text-xs mt-1.5 flex items-center gap-1">
+                <SI p={IC.calendar} size={11}/> Zeitraum-Event: Gib optional ein Enddatum an
+              </p>
+            )}
           </div>
         </div>
 
@@ -814,8 +808,7 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
             {METRICS.map(m=>(
               <div key={m.key}>
                 <label className="flex items-center gap-1.5 text-xs font-semibold mb-1.5" style={{color:m.color}}>
-                  <span className="metric-dot" style={{background:m.color}}/>
-                  {m.label}
+                  <span className="dot" style={{background:m.color}}/>{m.label}
                 </label>
                 <input type="number" min="0" value={form[m.key]}
                   onChange={e=>set(m.key,e.target.value)} placeholder="0"
@@ -828,7 +821,7 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
         <div className="glass rounded-2xl p-5 glow">
           <label className="block text-slate-400 text-xs mb-1.5">Notizen</label>
           <textarea value={form.notes} onChange={e=>set('notes',e.target.value)}
-            placeholder="Thema, Gastredner, Besonderheiten‚Ä¶" rows={3} className={inp+" resize-none"}/>
+            placeholder="Thema, Gastredner, Besonderheiten ‚Ä¶" rows={3} className={inp+" resize-none"}/>
         </div>
 
         <div className="flex gap-3">
@@ -848,24 +841,24 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
   );
 };
 
-// ‚îÄ‚îÄ EntryList ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Eintrags-Liste ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
-  const [search, setSearch]     = useState('');
-  const [desc, setDesc]         = useState(true);
-  const [confirm, setConfirm]   = useState(null);
-  const [fromF, setFromF]       = useState('');
-  const [toF, setToF]           = useState('');
-  const [etFilter, setEtFilter] = useState('all');
-  const [showNote, setShowNote] = useState(null);
+  const [search,  setSearch]  = useState('');
+  const [desc,    setDesc]    = useState(true);
+  const [confirm, setConfirm] = useState(null);
+  const [fromF,   setFromF]   = useState('');
+  const [toF,     setToF]     = useState('');
+  const [etF,     setEtF]     = useState('all');
+  const [openNote,setOpenNote]= useState(null);
 
   const filtered = useMemo(()=>{
     let list = [...entries];
     if (search) { const q=search.toLowerCase(); list=list.filter(e=>(e.event||'').toLowerCase().includes(q)||e.date.includes(q)||(e.notes||'').toLowerCase().includes(q)); }
     if (fromF) list=list.filter(e=>e.date>=fromF);
     if (toF)   list=list.filter(e=>e.date<=toF);
-    if (etFilter!=='all') list=list.filter(e=>e.eventTypeId===etFilter);
+    if (etF!=='all') list=list.filter(e=>e.eventTypeId===etF);
     return list.sort((a,b)=>desc?b.date.localeCompare(a.date):a.date.localeCompare(b.date));
-  },[entries,search,desc,fromF,toF,etFilter]);
+  },[entries,search,desc,fromF,toF,etF]);
 
   const del = id => {
     if (confirm===id) { onDelete(id); setConfirm(null); }
@@ -883,15 +876,15 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
         </div>
         <button onClick={onAdd}
           className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all">
-          <SI p={IC.plus} size={14}/> Neu
+          <SI p={IC.plus} size={13}/> Neu
         </button>
       </div>
 
       <div className="glass rounded-2xl p-4 space-y-3">
         <div className="flex gap-2 flex-wrap">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Suchen‚Ä¶" className={inp+" flex-1 min-w-[140px]"}/>
-          <select value={etFilter} onChange={e=>setEtFilter(e.target.value)} className={inp}>
+            placeholder="Suchen ‚Ä¶" className={inp+" flex-1 min-w-[130px]"}/>
+          <select value={etF} onChange={e=>setEtF(e.target.value)} className={inp}>
             <option value="all">Alle Typen</option>
             {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
@@ -905,14 +898,14 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
           <input type="date" value={fromF} onChange={e=>setFromF(e.target.value)} className={inp+" text-xs py-1.5"}/>
           <span className="text-slate-600 text-xs">‚Äì</span>
           <input type="date" value={toF} onChange={e=>setToF(e.target.value)} className={inp+" text-xs py-1.5"}/>
-          {(fromF||toF) && <button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">√ó Zur√ºcksetzen</button>}
+          {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">√ó Zur√ºcksetzen</button>}
         </div>
       </div>
 
       {filtered.length===0 ? (
-        <div className="glass rounded-2xl py-16 text-center text-slate-600">
-          <div className="font-medium text-slate-500 mb-1">Keine Eintr√§ge gefunden</div>
-          {entries.length===0 && <button onClick={onAdd} className="mt-3 text-violet-400 hover:text-violet-300 text-sm">Ersten Eintrag erstellen</button>}
+        <div className="glass rounded-2xl py-16 text-center">
+          <div className="text-slate-400 font-medium mb-1">Keine Eintr√§ge gefunden</div>
+          {entries.length===0&&<button onClick={onAdd} className="mt-3 text-violet-400 hover:text-violet-300 text-sm">Ersten Eintrag erstellen</button>}
         </div>
       ) : (
         <div className="space-y-2">
@@ -923,23 +916,26 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="font-semibold text-slate-200 text-sm">{fmtDe(e.date)}</span>
-                      {e.event && <span className="text-xs text-slate-300 font-medium">{e.event}</span>}
-                      {et && <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>}
+                      <span className="font-semibold text-slate-200 text-sm">{fmtRange(e.date, e.dateTo)}</span>
+                      {e.event&&<span className="text-xs text-slate-300 font-medium">{e.event}</span>}
+                      {et&&<span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>}
+                      {et?.isRange&&e.dateTo&&e.dateTo!==e.date&&(
+                        <span className="pill" style={{background:'rgba(245,158,11,0.15)',color:'#f59e0b'}}>Zeitraum</span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-4">
                       {METRICS.map(m=>(
                         <div key={m.key} className="flex items-center gap-1.5">
-                          <span className="metric-dot" style={{background:m.color,width:7,height:7}}/>
+                          <span className="dot" style={{background:m.color,width:7,height:7}}/>
                           <span className="font-bold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</span>
                           <span className="text-slate-600 text-xs">{m.label}</span>
                         </div>
                       ))}
                     </div>
-                    {e.notes && (
-                      <button onClick={()=>setShowNote(showNote===e.id?null:e.id)}
+                    {e.notes&&(
+                      <button onClick={()=>setOpenNote(openNote===e.id?null:e.id)}
                         className="mt-1.5 text-slate-600 hover:text-slate-400 text-xs text-left transition-all">
-                        {showNote===e.id ? e.notes : `${e.notes.slice(0,60)}${e.notes.length>60?'‚Ä¶':''}`}
+                        {openNote===e.id?e.notes:`${e.notes.slice(0,60)}${e.notes.length>60?'‚Ä¶':''}`}
                       </button>
                     )}
                   </div>
@@ -964,33 +960,35 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
   );
 };
 
-// ‚îÄ‚îÄ EventTypeManager ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Event-Typ-Verwaltung ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
-  const [name, setName]   = useState('');
-  const [color, setColor] = useState('#8b5cf6');
-  const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [name,      setName]      = useState('');
+  const [color,     setColor]     = useState('#8b5cf6');
+  const [isRange,   setIsRange]   = useState(false);
+  const [editId,    setEditId]    = useState(null);
+  const [editName,  setEditName]  = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editRange, setEditRange] = useState(false);
 
-  const usageCount = id => entries.filter(e=>e.eventTypeId===id).length;
+  const uses = id => entries.filter(e=>e.eventTypeId===id).length;
 
   const add = () => {
     if (!name.trim()) return;
-    setEventTypes(p=>[...p,{id:genId(),name:name.trim(),color}]);
-    setName(''); setColor('#8b5cf6');
+    setEventTypes(p=>[...p,{id:genId(),name:name.trim(),color,isRange}]);
+    setName(''); setColor('#8b5cf6'); setIsRange(false);
   };
 
   const save = id => {
-    setEventTypes(p=>p.map(t=>t.id===id?{...t,name:editName,color:editColor}:t));
+    setEventTypes(p=>p.map(t=>t.id===id?{...t,name:editName,color:editColor,isRange:editRange}:t));
     setEditId(null);
   };
 
   const remove = id => {
-    if (usageCount(id) > 0) { alert(`Dieser Typ wird in ${usageCount(id)} Eintr√§gen verwendet. Bitte zuerst die Eintr√§ge anpassen.`); return; }
+    if (uses(id)>0) { alert(`Dieser Typ wird in ${uses(id)} Eintr√§gen verwendet.\nBitte zuerst die betreffenden Eintr√§ge anpassen.`); return; }
     setEventTypes(p=>p.filter(t=>t.id!==id));
   };
 
-  const startEdit = t => { setEditId(t.id); setEditName(t.name); setEditColor(t.color); };
+  const startEdit = t => { setEditId(t.id); setEditName(t.name); setEditColor(t.color); setEditRange(!!t.isRange); };
 
   const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600";
 
@@ -998,25 +996,31 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
     <div className="up space-y-5 max-w-xl">
       <div>
         <h1 className="text-xl font-bold grad">Event-Typen</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Kategorien f√ºr deine Events verwalten</p>
+        <p className="text-slate-500 text-sm mt-0.5">Kategorien f√ºr Events verwalten</p>
       </div>
 
-      <div className="glass rounded-2xl p-5 glow">
-        <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-4">Neuer Typ</p>
+      <div className="glass rounded-2xl p-5 glow space-y-3">
+        <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Neuer Typ</p>
         <div className="flex gap-2">
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Name des Event-Typs"
             className={inp+" flex-1"} onKeyDown={e=>e.key==='Enter'&&add()}/>
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3">
-            <span className="metric-dot" style={{width:14,height:14,background:color,borderRadius:3}}/>
+            <span className="dot" style={{width:14,height:14,background:color,borderRadius:3}}/>
             <input type="color" value={color} onChange={e=>setColor(e.target.value)}
-              className="w-6 h-6 rounded cursor-pointer bg-transparent border-0"
-              style={{appearance:'none'}} title="Farbe w√§hlen"/>
+              className="w-6 h-6 cursor-pointer bg-transparent border-0" title="Farbe w√§hlen"/>
           </div>
           <button onClick={add}
             className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap">
             Hinzuf√ºgen
           </button>
         </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <button type="button" onClick={()=>setIsRange(p=>!p)}
+            className={`toggle ${isRange?'on':''}`}
+            style={{background: isRange?'#f59e0b':'rgba(255,255,255,0.1)'}}/>
+          <span className="text-slate-300 text-sm">Zeitraum-Event</span>
+          <span className="text-slate-500 text-xs">(z. B. Freizeit, Konferenz √ºber mehrere Tage)</span>
+        </label>
       </div>
 
       <div className="glass rounded-2xl p-5 glow space-y-2">
@@ -1029,6 +1033,10 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
                   className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 flex-shrink-0"/>
                 <input value={editName} onChange={e=>setEditName(e.target.value)}
                   className={inp+" flex-1 py-1.5"} autoFocus onKeyDown={e=>e.key==='Enter'&&save(t.id)}/>
+                <button type="button" onClick={()=>setEditRange(p=>!p)}
+                  className={`toggle flex-shrink-0 ${editRange?'on':''}`}
+                  style={{background:editRange?'#f59e0b':'rgba(255,255,255,0.1)'}}
+                  title={editRange?'Zeitraum-Event':'Einzeldatum'}/>
                 <button onClick={()=>save(t.id)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition-all">
                   <SI p={IC.check} size={13}/>
@@ -1040,10 +1048,13 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2.5 flex-1">
-                  <span className="metric-dot" style={{width:12,height:12,borderRadius:3,background:t.color}}/>
-                  <span className="text-slate-200 text-sm font-medium">{t.name}</span>
-                  <span className="text-slate-600 text-xs">{usageCount(t.id)} Eintr√§ge</span>
+                <span className="dot" style={{width:12,height:12,borderRadius:3,background:t.color,flexShrink:0}}/>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-200 text-sm font-medium">{t.name}</span>
+                    {t.isRange&&<span className="pill" style={{background:'rgba(245,158,11,0.15)',color:'#f59e0b'}}>Zeitraum</span>}
+                  </div>
+                  <span className="text-slate-600 text-xs">{uses(t.id)} Eintr√§ge</span>
                 </div>
                 <span className="pill" style={{background:t.color+'22',color:t.color}}>{t.name}</span>
                 <button onClick={()=>startEdit(t)}
@@ -1051,8 +1062,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
                   <SI p={IC.edit} size={13}/>
                 </button>
                 <button onClick={()=>remove(t.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400 transition-all"
-                  title={usageCount(t.id)>0?`${usageCount(t.id)} Eintr√§ge verwenden diesen Typ`:'L√∂schen'}>
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400 transition-all">
                   <SI p={IC.trash} size={13}/>
                 </button>
               </>
@@ -1066,61 +1076,47 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
 
 // ‚îÄ‚îÄ App ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const App = () => {
-  const [entries, setEntries] = useState(()=>{
-    try { const s=localStorage.getItem('revive-entries'); return s?JSON.parse(s):[]; } catch{ return []; }
-  });
-  const [eventTypes, setEventTypes] = useState(()=>{
-    try { const s=localStorage.getItem('revive-event-types'); return s?JSON.parse(s):DEFAULT_EVENT_TYPES; } catch{ return DEFAULT_EVENT_TYPES; }
-  });
-  const [page, setPage]   = useState('dashboard');
+  const [entries,    setEntries]    = useState(()=>{ try{const s=localStorage.getItem('revive-entries'); return s?JSON.parse(s):[];}catch{return[];} });
+  const [eventTypes, setEventTypes] = useState(()=>{ try{const s=localStorage.getItem('revive-etypes'); return s?JSON.parse(s):DEFAULT_TYPES;}catch{return DEFAULT_TYPES;} });
+  const [page,    setPage]    = useState('dashboard');
   const [editing, setEditing] = useState(null);
 
   useEffect(()=>{ localStorage.setItem('revive-entries', JSON.stringify(entries)); }, [entries]);
-  useEffect(()=>{ localStorage.setItem('revive-event-types', JSON.stringify(eventTypes)); }, [eventTypes]);
+  useEffect(()=>{ localStorage.setItem('revive-etypes',  JSON.stringify(eventTypes)); }, [eventTypes]);
 
-  const sort = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
+  const sorted = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
 
-  const addEntry = useCallback(entry=>{
-    setEntries(p=>sort([...p,{...entry,id:genId()}]));
-    setPage('entries');
-  },[]);
+  const addEntry    = useCallback(e => { setEntries(p=>sorted([...p,{...e,id:genId()}])); setPage('entries'); }, []);
+  const updateEntry = useCallback((id,d) => { setEntries(p=>sorted(p.map(e=>e.id===id?{...e,...d}:e))); setEditing(null); setPage('entries'); }, []);
+  const deleteEntry = useCallback(id => { setEntries(p=>p.filter(e=>e.id!==id)); }, []);
 
-  const updateEntry = useCallback((id,data)=>{
-    setEntries(p=>sort(p.map(e=>e.id===id?{...e,...data}:e)));
-    setEditing(null); setPage('entries');
-  },[]);
-
-  const deleteEntry = useCallback(id=>{
-    setEntries(p=>p.filter(e=>e.id!==id));
-  },[]);
-
-  const importCSV = e => {
-    const file = e.target.files?.[0]; if(!file) return;
+  const importCSV = ev => {
+    const file = ev.target.files?.[0]; if (!file) return;
     const r = new FileReader();
-    r.onload = ev => {
-      const lines = ev.target.result.split('\n').filter(Boolean);
-      const imported = [];
-      for(let i=1;i<lines.length;i++){
+    r.onload = e => {
+      const lines = e.target.result.split('\n').filter(Boolean);
+      const imp = [];
+      for (let i=1;i<lines.length;i++) {
         const c = lines[i].match(/(".*?"|[^,]+)/g)?.map(x=>x.replace(/^"|"$/g,'').replace(/""/g,'"'))||[];
-        if(c[0]) imported.push({id:genId(),date:c[0],event:c[1]||'',eventTypeId:'',
+        if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',
           besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
       }
-      if(imported.length){ setEntries(p=>sort([...p,...imported])); alert(`${imported.length} Eintr√§ge importiert.`); }
+      if (imp.length) { setEntries(p=>sorted([...p,...imp])); alert(`${imp.length} Eintr√§ge importiert.`); }
     };
-    r.readAsText(file); e.target.value='';
+    r.readAsText(file); ev.target.value='';
   };
 
   const TABS = [
-    { id:'dashboard', label:'Dashboard',    icon: IC.chart   },
-    { id:'compare',   label:'Vergleich',    icon: IC.compare },
-    { id:'form',      label:'Neuer Eintrag',icon: IC.plus    },
-    { id:'entries',   label:'Eintr√§ge',     icon: IC.list    },
-    { id:'types',     label:'Event-Typen',  icon: IC.tag     },
+    {id:'dashboard', label:'Dashboard',    icon:IC.chart  },
+    {id:'compare',   label:'Vergleich',    icon:IC.compare},
+    {id:'form',      label:'Neuer Eintrag',icon:IC.plus   },
+    {id:'entries',   label:'Eintr√§ge',     icon:IC.list   },
+    {id:'types',     label:'Event-Typen',  icon:IC.tag    },
   ];
 
   return (
     <div className="min-h-screen">
-      <header style={{background:'rgba(15,15,26,0.94)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(255,255,255,0.07)',position:'sticky',top:0,zIndex:50}}>
+      <header style={{background:'rgba(15,15,26,0.95)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(255,255,255,0.07)',position:'sticky',top:0,zIndex:50}}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0"
             style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>R</div>
@@ -1132,10 +1128,9 @@ const App = () => {
           <nav className="flex gap-1 mx-auto flex-wrap justify-center">
             {TABS.map(t=>(
               <button key={t.id}
-                onClick={()=>{ setPage(t.id); if(t.id!=='form') setEditing(null); }}
+                onClick={()=>{ setPage(t.id); if (t.id!=='form') setEditing(null); }}
                 className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border ${
-                  page===t.id?'bg-violet-600/20 border-violet-500/40 text-violet-300':'text-slate-500 hover:text-slate-300 border-transparent hover:bg-white/5'
-                }`}>
+                  page===t.id?'bg-violet-600/20 border-violet-500/40 text-violet-300':'text-slate-500 hover:text-slate-300 border-transparent hover:bg-white/5'}`}>
                 <SI p={t.icon} size={13}/>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -1145,7 +1140,7 @@ const App = () => {
           <div className="flex gap-1.5 flex-shrink-0">
             <button onClick={()=>exportExcel(entries,eventTypes)}
               className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs"
-              title="Als Excel exportieren">
+              title="Als Excel-Datei exportieren">
               <SI p={IC.download} size={13}/><span className="hidden sm:inline">Export</span>
             </button>
             <label className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs cursor-pointer"
