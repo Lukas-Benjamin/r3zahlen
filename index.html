@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Revive Youth Stats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -15,7 +17,7 @@
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #0f0f1a; }
     ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
-    body { background: #0f0f1a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; margin: 0; }
+    body { background: #0f0f1a; color: #e2e8f0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; }
     .glass { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
     .glass-hover:hover { background: rgba(255,255,255,0.07); }
     .glow { box-shadow: 0 0 28px rgba(139,92,246,0.1); }
@@ -96,10 +98,15 @@ const mkCfg = (extra = {}) => ({
       grid: { color: 'rgba(255,255,255,0.04)' },
     },
     y: {
-      ticks: { color: '#475569', precision: 0, maxTicksLimit: 7 },
+      ticks: {
+        color: '#475569',
+        precision: 0,
+        maxTicksLimit: 6,
+        callback: v => v >= 10000 ? (v/1000).toFixed(0)+'k' : v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v,
+      },
       grid: { color: 'rgba(255,255,255,0.04)' },
       beginAtZero: true,
-      grace: '8%',
+      grace: '5%',
     },
     ...((extra.scales) || {}),
   },
@@ -160,86 +167,142 @@ const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
 const exportExcel = (entries, eventTypes) => {
   const wb = XLSX.utils.book_new();
   const etMap = Object.fromEntries(eventTypes.map(t => [t.id, t.name]));
-  const cw = ws => ws.map(w => ({ wch: w }));
+  const tot   = calcTotals(entries);
 
-  // Sheet 1: Alle Daten
-  const ws1 = XLSX.utils.aoa_to_sheet([
-    ['Datum', 'Datum bis', 'Event', 'Event-Typ', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen', 'Notizen'],
-    ...[...entries].sort((a,b) => b.date.localeCompare(a.date)).map(e => [
-      fmtDe(e.date), e.dateTo ? fmtDe(e.dateTo) : '',
-      e.event||'', etMap[e.eventTypeId]||'',
-      e.besucher||0, e.erstbesucher||0, e.entscheidungen||0, e.taufen||0, e.notes||'',
-    ]),
-  ]);
-  ws1['!cols'] = cw([12,12,28,22,12,14,16,10,45]);
-  XLSX.utils.book_append_sheet(wb, ws1, 'Alle Daten');
+  // Stil-Helfer
+  const HS = (rgb='3B0764') => ({ font:{bold:true,color:{rgb:'FFFFFF'},sz:11}, fill:{patternType:'solid',fgColor:{rgb}}, alignment:{horizontal:'center',vertical:'center'} });
+  const BS = { font:{bold:true}, alignment:{horizontal:'left'} };
+  const NS = (align='right') => ({ alignment:{horizontal:align} });
+  const GS = { font:{color:{rgb:'64748B'},sz:10}, alignment:{horizontal:'left'} };
+  const H  = (v,rgb='4C1D95') => ({v, t:'s', s:HS(rgb)});
+  const B  = v => ({v, t:'s', s:BS});
+  const N  = (v,fmt='0') => ({v:Number(v)||0, t:'n', z:fmt, s:NS()});
+  const NF = v => ({v:Number(v)||0, t:'n', z:'0.0', s:NS()});
+  const G  = v => ({v, t:'s', s:GS});
+  const T  = v => ({v, t:'s'});
 
-  // Sheet 2: Zusammenfassung
-  const tot = calcTotals(entries);
-  const ws2 = XLSX.utils.aoa_to_sheet([
-    ['REVIVE Youth Stats ‚Äì Zusammenfassung'],
+  // ‚îÄ‚îÄ Sheet 1: Zusammenfassung ‚îÄ‚îÄ
+  const etSection = [...eventTypes, {id:'',name:'(kein Typ)'}]
+    .map(et => {
+      const sub = entries.filter(e=>(e.eventTypeId||'')===et.id);
+      if (!sub.length && et.id) return null;
+      const subTot = calcTotals(sub);
+      return [B(et.name), N(sub.length), ...METRICS.map(m=>N(subTot[m.key])),
+        NF(sub.length ? subTot.besucher/sub.length : 0)];
+    }).filter(Boolean);
+
+  const ws1rows = [
+    [H('REVIVE Youth Stats','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764')],
+    [G(`Exportiert: ${fmtDe(today())}  |  Eintr√§ge gesamt: ${entries.length}`), G(''), G(''), G(''), G(''), G('')],
     [],
-    ['Erstellt am', fmtDe(today()), '', 'Eintr√§ge gesamt', entries.length],
-    [],
-    ['Metrik', 'Gesamt', 'Durchschnitt pro Event', 'Maximum', 'Minimum'],
+    [H('Metrik','5B21B6'), H('Gesamt','5B21B6'), H('√ò pro Event','5B21B6'), H('Maximum','5B21B6'), H('Minimum','5B21B6'), H('Top-Event','5B21B6')],
     ...METRICS.map(m => {
-      const vals = entries.map(e => Number(e[m.key])||0);
-      return [m.label, tot[m.key],
-        entries.length ? +(tot[m.key]/entries.length).toFixed(1) : 0,
-        vals.length ? Math.max(...vals) : 0,
-        vals.length ? Math.min(...vals) : 0];
+      const vals = entries.map(e=>Number(e[m.key])||0);
+      const maxIdx = vals.indexOf(Math.max(...vals));
+      const topEvt = entries[maxIdx]?.event || (entries[maxIdx] ? fmtDe(entries[maxIdx].date) : '‚Äî');
+      return [B(m.label), N(tot[m.key]), NF(entries.length?tot[m.key]/entries.length:0),
+        N(vals.length?Math.max(...vals):0), N(vals.length?Math.min(...vals):0), T(topEvt)];
     }),
     [],
-    ['Nach Event-Typ', 'Events', 'Besucher', 'Erstbesucher', 'Entscheidungen', 'Taufen'],
-    ...[...eventTypes, {id:'', name:'(kein Typ)'}].map(et => {
-      const sub = entries.filter(e => (e.eventTypeId||'') === et.id);
-      if (!sub.length && et.id) return null;
-      return [et.name, sub.length, ...METRICS.map(m => sub.reduce((s,e)=>s+(Number(e[m.key])||0),0))];
-    }).filter(Boolean),
-  ]);
-  ws2['!cols'] = cw([24,12,24,12,10]);
-  ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Zusammenfassung');
+    [H('Nach Event-Typ','5B21B6'), H('Events','5B21B6'), H('Besucher','5B21B6'),
+     H('Erstbesucher','5B21B6'), H('Entscheidungen','5B21B6'), H('Taufen','5B21B6'), H('√ò Besucher','5B21B6')],
+    ...etSection,
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(ws1rows);
+  ws1['!cols'] = [26,12,16,12,12,24].map(w=>({wch:w}));
+  ws1['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:5}},
+    {s:{r:1,c:0},e:{r:1,c:5}},
+  ];
+  ws1['!rows'] = [{hpt:22},{hpt:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Zusammenfassung');
 
-  // Sheet 3: Monatlich
+  // ‚îÄ‚îÄ Sheet 2: Alle Daten ‚îÄ‚îÄ
+  const sorted = [...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const ws2rows = [
+    [H('Datum'),H('Datum bis'),H('Event'),H('Event-Typ'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Notizen')],
+    ...sorted.map(e=>[
+      T(fmtDe(e.date)), T(e.dateTo?fmtDe(e.dateTo):''),
+      T(e.event||''), T(etMap[e.eventTypeId]||''),
+      N(e.besucher), N(e.erstbesucher), N(e.entscheidungen), N(e.taufen),
+      T(e.notes||''),
+    ]),
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(ws2rows);
+  ws2['!cols'] = [12,12,32,22,12,14,16,10,50].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Alle Daten');
+
+  // ‚îÄ‚îÄ Sheet 3: Monatlich ‚îÄ‚îÄ
   const mMap = {};
-  entries.forEach(e => {
-    const k = e.date.slice(0,7);
-    if (!mMap[k]) mMap[k] = {count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
-    METRICS.forEach(m => mMap[k][m.key] += Number(e[m.key])||0);
+  entries.forEach(e=>{
+    const k=e.date.slice(0,7);
+    if(!mMap[k]) mMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m=>mMap[k][m.key]+=Number(e[m.key])||0);
     mMap[k].count++;
   });
-  const ws3 = XLSX.utils.aoa_to_sheet([
-    ['Monat','Eintr√§ge','Besucher','Erstbesucher','Entscheidungen','Taufen','√ò Besucher','√ò Erstbesucher','√ò Entscheidungen','√ò Taufen'],
-    ...Object.entries(mMap).sort().map(([k,v]) => [
-      monthLabel(k), v.count, v.besucher, v.erstbesucher, v.entscheidungen, v.taufen,
-      +(v.besucher/v.count).toFixed(1), +(v.erstbesucher/v.count).toFixed(1),
-      +(v.entscheidungen/v.count).toFixed(1), +(v.taufen/v.count).toFixed(1),
+  const months = Object.entries(mMap).sort();
+  const ws3rows = [
+    [H('Monat'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
+     H('√ò Besucher'),H('√ò Erstbesucher'),H('√ò Entscheidungen'),H('√ò Taufen')],
+    ...months.map(([k,v])=>[
+      B(monthLabel(k)), N(v.count),
+      N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
+      NF(v.besucher/v.count), NF(v.erstbesucher/v.count),
+      NF(v.entscheidungen/v.count), NF(v.taufen/v.count),
     ]),
-    [], ['Gesamt', entries.length, ...METRICS.map(m=>tot[m.key])],
-  ]);
-  ws3['!cols'] = cw([22,10,12,14,16,10,14,16,18,12]);
+    [],
+    [B('GESAMT'), N(entries.length), ...METRICS.map(m=>N(tot[m.key])), NF(months.length?months.reduce((s,[,v])=>s+v.besucher,0)/months.length:0)],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(ws3rows);
+  ws3['!cols'] = [22,8,12,14,16,10,13,15,18,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws3, 'Monatlich');
 
-  // Sheet 4: J√§hrlich
+  // ‚îÄ‚îÄ Sheet 4: Quartal ‚îÄ‚îÄ
+  const qMap = {};
+  entries.forEach(e=>{
+    const yr=e.date.slice(0,4), mo=parseInt(e.date.slice(5,7)), q=Math.ceil(mo/3);
+    const k=`${yr}-Q${q}`;
+    if(!qMap[k]) qMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m=>qMap[k][m.key]+=Number(e[m.key])||0);
+    qMap[k].count++;
+  });
+  const ws4rows = [
+    [H('Quartal'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('√ò Besucher'),H('√ò Erstbesucher')],
+    ...Object.entries(qMap).sort().map(([k,v])=>[
+      B(k), N(v.count),
+      N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
+      NF(v.besucher/v.count), NF(v.erstbesucher/v.count),
+    ]),
+  ];
+  const ws4 = XLSX.utils.aoa_to_sheet(ws4rows);
+  ws4['!cols'] = [10,8,12,14,16,10,13,15].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws4, 'Quartal');
+
+  // ‚îÄ‚îÄ Sheet 5: J√§hrlich ‚îÄ‚îÄ
   const yMap = {};
-  entries.forEach(e => {
-    const k = e.date.slice(0,4);
-    if (!yMap[k]) yMap[k] = {count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
-    METRICS.forEach(m => yMap[k][m.key] += Number(e[m.key])||0);
+  entries.forEach(e=>{
+    const k=e.date.slice(0,4);
+    if(!yMap[k]) yMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m=>yMap[k][m.key]+=Number(e[m.key])||0);
     yMap[k].count++;
   });
-  const ws4 = XLSX.utils.aoa_to_sheet([
-    ['Jahr','Events','Besucher','Erstbesucher','Entscheidungen','Taufen','√ò Besucher/Event','√ò Erstbesucher/Event'],
-    ...Object.entries(yMap).sort().map(([k,v]) => [
-      k, v.count, v.besucher, v.erstbesucher, v.entscheidungen, v.taufen,
-      +(v.besucher/v.count).toFixed(1), +(v.erstbesucher/v.count).toFixed(1),
+  const ws5rows = [
+    [H('Jahr'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
+     H('√ò Besucher/Event'),H('√ò Erstbesucher/Event'),H('√ò Entscheidungen/Event'),H('√ò Taufen/Event')],
+    ...Object.entries(yMap).sort().map(([k,v])=>[
+      B(k), N(v.count),
+      N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
+      NF(v.besucher/v.count), NF(v.erstbesucher/v.count),
+      NF(v.entscheidungen/v.count), NF(v.taufen/v.count),
     ]),
-  ]);
-  ws4['!cols'] = cw([8,8,12,14,16,10,18,20]);
-  XLSX.utils.book_append_sheet(wb, ws4, 'J√§hrlich');
+    [],
+    [B('GESAMT'), N(entries.length), ...METRICS.map(m=>N(tot[m.key]))],
+  ];
+  const ws5 = XLSX.utils.aoa_to_sheet(ws5rows);
+  ws5['!cols'] = [8,8,12,14,16,10,18,20,20,16].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws5, 'J√§hrlich');
 
-  XLSX.writeFile(wb, `revive-stats-${today()}.xlsx`);
+  XLSX.writeFile(wb, `revive-stats-${today()}.xlsx`, {cellStyles:true});
 };
 
 // ‚îÄ‚îÄ Dashboard ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
@@ -418,7 +481,7 @@ const Dashboard = ({ entries, eventTypes }) => {
             ))}
           </div>
         </div>
-        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={260}/>
+        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={220}/>
       </div>
 
       {/* Verteilung + Kumulativ */}
@@ -426,12 +489,12 @@ const Dashboard = ({ entries, eventTypes }) => {
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Verteilung gesamt</h3>
           <ChartCanvas id={`donut-${from}-${to}-${etF}-${totKey}`} type="doughnut"
-            data={donutData} options={mkCfgNoScale()} h={220}/>
+            data={donutData} options={mkCfgNoScale()} h={190}/>
         </div>
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Kumulativer Verlauf</h3>
           <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line"
-            data={filtered.length?cumulData:null} options={mkCfg()} h={220}/>
+            data={filtered.length?cumulData:null} options={mkCfg()} h={190}/>
         </div>
       </div>
 
@@ -440,7 +503,7 @@ const Dashboard = ({ entries, eventTypes }) => {
         <div className="glass rounded-2xl p-5 glow">
           <h3 className="font-semibold text-slate-200 text-sm mb-4">Vergleich nach Event-Typ</h3>
           <ChartCanvas id={`et-${from}-${to}-${active.join()}-${totKey}`} type="bar"
-            data={etData} options={mkCfg()} h={220}/>
+            data={etData} options={mkCfg()} h={190}/>
         </div>
       )}
 
@@ -462,7 +525,7 @@ const Dashboard = ({ entries, eventTypes }) => {
                     <span className="ml-auto text-2xl font-bold" style={{color:m.color}}>{totals[m.key]}</span>
                   </div>
                   <ChartCanvas id={`${m.key}-${from}-${to}-${etF}-${totals[m.key]}`} type="bar" data={d}
-                    options={mkCfg({plugins:{legend:{display:false}}})} h={150}/>
+                    options={mkCfg({plugins:{legend:{display:false}}})} h={120}/>
                 </div>
               );
             })}
