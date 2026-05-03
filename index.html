@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revive | Youth Stats</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce' }
+          }
+        }
+      }
+    }
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f0f1a; }
+    ::-webkit-scrollbar-thumb { background: #7e22ce; border-radius: 3px; }
+    body { background: #0f0f1a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.09); }
+    .glow { box-shadow: 0 0 24px rgba(168,85,247,0.12); }
+    .gradient-text { background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    .nav-active { background: rgba(168,85,247,0.18); border-color: rgba(168,85,247,0.5) !important; color: #c084fc !important; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #a855f7 !important; background: rgba(168,85,247,0.06) !important; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const METRICS = [
+      { key: 'besucher',       label: 'Besucher',       icon: '👥', color: '#6366f1' },
+      { key: 'erstbesucher',   label: 'Erstbesucher',   icon: '🌟', color: '#ec4899' },
+      { key: 'entscheidungen', label: 'Entscheidungen', icon: '🙏', color: '#f59e0b' },
+      { key: 'taufen',         label: 'Taufen',         icon: '💧', color: '#10b981' },
+    ];
+
+    const CHART_DEFAULTS = {
+      plugins: {
+        legend: { labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { size: 12 } } },
+        tooltip: {
+          backgroundColor: 'rgba(15,15,26,0.97)',
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+          borderColor: 'rgba(168,85,247,0.35)', borderWidth: 1, padding: 10,
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', maxRotation: 45, font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+      },
+    };
+
+    const NO_SCALE = { plugins: CHART_DEFAULTS.plugins };
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    const genId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+
+    const fmt = (dateStr) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-');
+      return `${d}.${m}.${y}`;
+    };
+
+    const fmtShort = (dateStr) => {
+      if (!dateStr) return '';
+      const [, m, d] = dateStr.split('-');
+      return `${d}.${m}`;
+    };
+
+    const today = () => new Date().toISOString().split('T')[0];
+    const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().split('T')[0];
+
+    // ── ChartCanvas ────────────────────────────────────────────────────────────
+    const ChartCanvas = ({ id, type, data, options, height = 280 }) => {
+      const ref = useRef(null);
+      const inst = useRef(null);
+
+      useEffect(() => {
+        if (!ref.current) return;
+        if (inst.current) { inst.current.destroy(); inst.current = null; }
+        if (!data?.labels?.length) return;
+        inst.current = new Chart(ref.current.getContext('2d'), {
+          type,
+          data,
+          options: { responsive: true, maintainAspectRatio: false, ...options },
+        });
+        return () => { if (inst.current) { inst.current.destroy(); inst.current = null; } };
+      }, [id, type, JSON.stringify(data), JSON.stringify(options)]);
+
+      if (!data?.labels?.length) {
+        return (
+          <div className="flex items-center justify-center text-gray-600 text-sm" style={{ height }}>
+            Keine Daten im Zeitraum
+          </div>
+        );
+      }
+      return <canvas ref={ref} style={{ height, display: 'block' }} />;
+    };
+
+    // ── StatCard ───────────────────────────────────────────────────────────────
+    const StatCard = ({ metric, value, sub }) => (
+      <div className="glass glow rounded-2xl p-5 fade-in">
+        <div className="text-2xl mb-3">{metric.icon}</div>
+        <div className="text-3xl font-bold leading-none mb-1.5" style={{ color: metric.color }}>{value}</div>
+        <div className="text-gray-400 text-sm font-medium">{metric.label}</div>
+        {sub != null && <div className="text-xs mt-1" style={{ color: sub >= 0 ? '#10b981' : '#ef4444' }}>
+          Ø {sub.toFixed(1)} / Eintrag
+        </div>}
+      </div>
+    );
+
+    // ── Dashboard ──────────────────────────────────────────────────────────────
+    const Dashboard = ({ entries }) => {
+      const [from, setFrom] = useState(daysAgo(90));
+      const [to, setTo]     = useState(today());
+      const [preset, setPreset] = useState('90d');
+      const [active, setActive] = useState(METRICS.map(m => m.key));
+      const [mainView, setMainView] = useState('line');
+
+      const applyPreset = (p) => {
+        setPreset(p);
+        const t = today();
+        let f;
+        if (p === '30d')  f = daysAgo(30);
+        if (p === '90d')  f = daysAgo(90);
+        if (p === 'year') f = `${new Date().getFullYear()}-01-01`;
+        if (p === 'all')  f = entries.length ? entries.reduce((mn, e) => e.date < mn ? e.date : mn, entries[0].date) : '2020-01-01';
+        setFrom(f); setTo(t);
+      };
+
+      const filtered = useMemo(() =>
+        [...entries].filter(e => e.date >= from && e.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
+        [entries, from, to]
+      );
+
+      const totals = useMemo(() =>
+        METRICS.reduce((acc, m) => ({ ...acc, [m.key]: filtered.reduce((s, e) => s + (Number(e[m.key]) || 0), 0) }), {}),
+        [filtered]
+      );
+
+      const activeMetrics = METRICS.filter(m => active.includes(m.key));
+
+      const makeLineData = (fill = false) => ({
+        labels: filtered.map(e => fmtShort(e.date) + (e.event ? ` · ${e.event.slice(0,12)}` : '')),
+        datasets: activeMetrics.map(m => ({
+          label: m.label,
+          data: filtered.map(e => Number(e[m.key]) || 0),
+          borderColor: m.color, backgroundColor: m.color + '22',
+          fill, tension: 0.4, pointRadius: 4, pointHoverRadius: 6,
+        })),
+      });
+
+      const barData = {
+        labels: filtered.map(e => fmtShort(e.date)),
+        datasets: activeMetrics.map(m => ({
+          label: m.label,
+          data: filtered.map(e => Number(e[m.key]) || 0),
+          backgroundColor: m.color + 'bb', borderRadius: 4,
+        })),
+      };
+
+      const cumulData = {
+        labels: filtered.map(e => fmtShort(e.date)),
+        datasets: activeMetrics.map(m => {
+          let c = 0;
+          return {
+            label: m.label,
+            data: filtered.map(e => { c += Number(e[m.key]) || 0; return c; }),
+            borderColor: m.color, backgroundColor: m.color + '18', fill: true, tension: 0.4, pointRadius: 3,
+          };
+        }),
+      };
+
+      const donutData = (() => {
+        const vals = METRICS.map(m => totals[m.key]);
+        if (!vals.some(v => v > 0)) return null;
+        return {
+          labels: METRICS.map(m => m.label),
+          datasets: [{ data: vals, backgroundColor: METRICS.map(m => m.color + 'bb'), borderColor: METRICS.map(m => m.color), borderWidth: 2, hoverOffset: 6 }],
+        };
+      })();
+
+      const toggle = (k) => setActive(p => p.includes(k) ? p.filter(x => x !== k) : [...p, k]);
+
+      const Preset = ({ p, lbl }) => (
+        <button onClick={() => applyPreset(p)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${preset === p ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+          {lbl}
+        </button>
+      );
+
+      const mainData = mainView === 'bar' ? barData : mainView === 'area' ? makeLineData(true) : makeLineData(false);
+      const mainType = mainView === 'bar' ? 'bar' : 'line';
+      const mainKey  = `main-${mainView}-${from}-${to}-${active.join()}`;
+
+      return (
+        <div className="space-y-6 fade-in">
+          <div>
+            <h1 className="text-2xl font-bold gradient-text">Dashboard</h1>
+            <p className="text-gray-500 text-sm mt-1">{filtered.length} Einträge im Zeitraum · {entries.length} gesamt</p>
+          </div>
+
+          {/* Filter bar */}
+          <div className="glass rounded-2xl p-4 space-y-3">
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex gap-2 flex-wrap">
+                <Preset p="30d" lbl="30 Tage" /><Preset p="90d" lbl="90 Tage" />
+                <Preset p="year" lbl="Dieses Jahr" /><Preset p="all" lbl="Alle" />
+              </div>
+              <div className="flex gap-3 ml-auto flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 text-xs">Von</span>
+                  <input type="date" value={from} onChange={e => { setFrom(e.target.value); setPreset(''); }}
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 text-xs">Bis</span>
+                  <input type="date" value={to} onChange={e => { setTo(e.target.value); setPreset(''); }}
+                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {METRICS.map(m => (
+                <button key={m.key} onClick={() => toggle(m.key)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: active.includes(m.key) ? m.color + '22' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${active.includes(m.key) ? m.color + '70' : 'transparent'}`,
+                    opacity: active.includes(m.key) ? 1 : 0.4,
+                  }}>
+                  <span>{m.icon}</span>
+                  <span style={{ color: active.includes(m.key) ? m.color : '#6b7280' }}>{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* KPI cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {METRICS.map(m => (
+              <StatCard key={m.key} metric={m} value={totals[m.key]}
+                sub={filtered.length ? totals[m.key] / filtered.length : 0} />
+            ))}
+          </div>
+
+          {/* Main chart */}
+          <div className="glass rounded-2xl p-5 glow">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="font-semibold text-gray-200">Entwicklung über Zeit</h3>
+              <div className="flex gap-2">
+                {[['line','Linie'],['area','Fläche'],['bar','Balken']].map(([v,l]) => (
+                  <button key={v} onClick={() => setMainView(v)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${mainView === v ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ height: 280 }}>
+              <ChartCanvas id={mainKey} type={mainType} data={filtered.length ? mainData : null}
+                options={CHART_DEFAULTS} height={280} />
+            </div>
+          </div>
+
+          {/* Row: doughnut + cumulative */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="glass rounded-2xl p-5 glow">
+              <h3 className="font-semibold text-gray-200 mb-4">Verteilung gesamt</h3>
+              <div style={{ height: 260 }}>
+                <ChartCanvas id={`donut-${from}-${to}`} type="doughnut"
+                  data={donutData} options={NO_SCALE} height={260} />
+              </div>
+            </div>
+            <div className="glass rounded-2xl p-5 glow">
+              <h3 className="font-semibold text-gray-200 mb-4">Kumulativer Verlauf</h3>
+              <div style={{ height: 260 }}>
+                <ChartCanvas id={`cum-${from}-${to}-${active.join()}`} type="line"
+                  data={filtered.length ? cumulData : null} options={CHART_DEFAULTS} height={260} />
+              </div>
+            </div>
+          </div>
+
+          {/* Individual metric charts */}
+          {activeMetrics.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-gray-200 mb-4">Einzelne Metriken</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeMetrics.map(m => {
+                  const d = filtered.length ? {
+                    labels: filtered.map(e => fmtShort(e.date)),
+                    datasets: [{
+                      label: m.label,
+                      data: filtered.map(e => Number(e[m.key]) || 0),
+                      backgroundColor: m.color + 'aa', borderRadius: 4,
+                    }],
+                  } : null;
+                  return (
+                    <div key={m.key} className="glass rounded-2xl p-5"
+                      style={{ border: `1px solid ${m.color}28` }}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">{m.icon}</span>
+                        <span className="font-semibold" style={{ color: m.color }}>{m.label}</span>
+                        <span className="ml-auto text-2xl font-bold" style={{ color: m.color }}>{totals[m.key]}</span>
+                      </div>
+                      <div style={{ height: 180 }}>
+                        <ChartCanvas id={`${m.key}-${from}-${to}`} type="bar" data={d}
+                          options={{
+                            plugins: { legend: { display: false }, tooltip: CHART_DEFAULTS.plugins.tooltip },
+                            scales: {
+                              x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+                              y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+                            },
+                          }} height={180} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent entries */}
+          {filtered.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-gray-200 mb-4">Letzte Einträge im Zeitraum</h3>
+              <div className="glass rounded-2xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      <th className="text-left px-4 py-3 text-gray-500 font-medium">Datum</th>
+                      <th className="text-left px-4 py-3 text-gray-500 font-medium">Event</th>
+                      {METRICS.map(m => (
+                        <th key={m.key} className="text-right px-3 py-3 font-medium" style={{ color: m.color }}>{m.icon}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...filtered].reverse().slice(0, 10).map((e, i) => (
+                      <tr key={e.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                        <td className="px-4 py-2.5 text-gray-300 whitespace-nowrap">{fmt(e.date)}</td>
+                        <td className="px-4 py-2.5 text-gray-400 max-w-[160px] truncate">{e.event || '—'}</td>
+                        {METRICS.map(m => (
+                          <td key={m.key} className="px-3 py-2.5 text-right font-semibold" style={{ color: m.color }}>
+                            {Number(e[m.key]) || 0}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ── EntryForm ──────────────────────────────────────────────────────────────
+    const EntryForm = ({ onSave, initialData, onCancel }) => {
+      const [form, setForm] = useState({
+        date: today(), event: '',
+        besucher: '', erstbesucher: '', entscheidungen: '', taufen: '',
+        notes: '', ...initialData,
+      });
+
+      const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!form.date) return;
+        onSave({
+          ...form,
+          besucher: Number(form.besucher) || 0,
+          erstbesucher: Number(form.erstbesucher) || 0,
+          entscheidungen: Number(form.entscheidungen) || 0,
+          taufen: Number(form.taufen) || 0,
+        });
+      };
+
+      const inp = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-gray-200 placeholder-gray-600 transition-all";
+
+      return (
+        <div className="fade-in max-w-2xl">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold gradient-text">{initialData ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}</h1>
+            <p className="text-gray-500 text-sm mt-1">Trage die Zahlen für dein Event ein</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="glass rounded-2xl p-5 glow space-y-4">
+              <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Event</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Datum *</label>
+                  <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
+                    className={inp} required />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Event / Name</label>
+                  <input type="text" value={form.event} onChange={e => set('event', e.target.value)}
+                    placeholder="z. B. Sonntagsgottesdienst" className={inp} />
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-5 glow">
+              <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-4">Zahlen</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {METRICS.map(m => (
+                  <div key={m.key}>
+                    <label className="flex items-center gap-1.5 text-sm font-medium mb-2" style={{ color: m.color }}>
+                      {m.icon} {m.label}
+                    </label>
+                    <input type="number" min="0" value={form[m.key]}
+                      onChange={e => set(m.key, e.target.value)}
+                      placeholder="0"
+                      className={inp}
+                      style={{ borderColor: form[m.key] ? m.color + '55' : undefined }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-5 glow">
+              <label className="block text-gray-400 text-sm mb-2">Notizen (optional)</label>
+              <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
+                placeholder="Thema, Gastredner, Besonderheiten..."
+                rows={3} className={inp + " resize-none"} />
+            </div>
+
+            <div className="flex gap-3">
+              <button type="submit"
+                className="flex-1 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-semibold py-3 px-6 rounded-xl transition-all">
+                {initialData ? '✓ Speichern' : '+ Eintrag hinzufügen'}
+              </button>
+              {onCancel && (
+                <button type="button" onClick={onCancel}
+                  className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 transition-all">
+                  Abbrechen
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      );
+    };
+
+    // ── EntryList ──────────────────────────────────────────────────────────────
+    const EntryList = ({ entries, onEdit, onDelete, onAdd }) => {
+      const [search, setSearch] = useState('');
+      const [desc, setDesc]     = useState(true);
+      const [confirm, setConfirm] = useState(null);
+      const [fromF, setFromF]   = useState('');
+      const [toF, setToF]       = useState('');
+
+      const filtered = useMemo(() => {
+        let list = [...entries];
+        if (search) {
+          const q = search.toLowerCase();
+          list = list.filter(e =>
+            (e.event || '').toLowerCase().includes(q) ||
+            e.date.includes(q) ||
+            (e.notes || '').toLowerCase().includes(q)
+          );
+        }
+        if (fromF) list = list.filter(e => e.date >= fromF);
+        if (toF)   list = list.filter(e => e.date <= toF);
+        list.sort((a, b) => desc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+        return list;
+      }, [entries, search, desc, fromF, toF]);
+
+      const del = (id) => {
+        if (confirm === id) { onDelete(id); setConfirm(null); }
+        else { setConfirm(id); setTimeout(() => setConfirm(c => c === id ? null : c), 3000); }
+      };
+
+      return (
+        <div className="fade-in space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold gradient-text">Alle Einträge</h1>
+              <p className="text-gray-500 text-sm mt-1">{entries.length} Einträge gesamt · {filtered.length} angezeigt</p>
+            </div>
+            <button onClick={onAdd}
+              className="bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition-all">
+              + Neu
+            </button>
+          </div>
+
+          <div className="glass rounded-2xl p-4 space-y-3">
+            <div className="flex gap-2 flex-wrap">
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="🔍 Suchen (Event, Datum, Notizen)…"
+                className="flex-1 min-w-[180px] bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-gray-200 placeholder-gray-600" />
+              <button onClick={() => setDesc(p => !p)}
+                className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-400 hover:bg-white/10 transition-all whitespace-nowrap">
+                {desc ? '↓ Neueste' : '↑ Älteste'}
+              </button>
+            </div>
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-gray-600 text-xs">Zeitraum:</span>
+              <input type="date" value={fromF} onChange={e => setFromF(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300" />
+              <span className="text-gray-600 text-xs">–</span>
+              <input type="date" value={toF} onChange={e => setToF(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300" />
+              {(fromF || toF) && (
+                <button onClick={() => { setFromF(''); setToF(''); }}
+                  className="text-xs text-purple-400 hover:text-purple-300 transition-all">
+                  × Zurücksetzen
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="glass rounded-2xl py-16 text-center text-gray-600">
+              <div className="text-4xl mb-3">📭</div>
+              <div>Keine Einträge gefunden</div>
+              {entries.length === 0 && (
+                <button onClick={onAdd} className="mt-4 text-purple-400 hover:text-purple-300 text-sm transition-all">
+                  Ersten Eintrag hinzufügen →
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map(e => (
+                <div key={e.id}
+                  className="glass rounded-2xl p-4 hover:bg-white/[0.06] transition-all">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="font-semibold text-gray-200 text-sm">{fmt(e.date)}</span>
+                        {e.event && (
+                          <span className="text-xs px-2 py-0.5 rounded-md font-medium"
+                            style={{ background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}>
+                            {e.event}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-4">
+                        {METRICS.map(m => (
+                          <div key={m.key} className="flex items-center gap-1">
+                            <span className="text-base">{m.icon}</span>
+                            <span className="font-bold text-sm" style={{ color: m.color }}>{Number(e[m.key]) || 0}</span>
+                            <span className="text-gray-600 text-xs hidden sm:inline">{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {e.notes && (
+                        <p className="text-gray-600 text-xs mt-1.5 truncate">{e.notes}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button onClick={() => onEdit(e)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-gray-500 hover:text-blue-400 transition-all text-sm">
+                        ✏️
+                      </button>
+                      <button onClick={() => del(e.id)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all text-sm ${
+                          confirm === e.id
+                            ? 'bg-red-900/50 text-red-400'
+                            : 'bg-white/5 hover:bg-red-900/25 text-gray-500 hover:text-red-400'
+                        }`}
+                        title={confirm === e.id ? 'Nochmal klicken zum Löschen' : 'Löschen'}>
+                        {confirm === e.id ? '⚠️' : '🗑️'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ── App ────────────────────────────────────────────────────────────────────
+    const App = () => {
+      const [entries, setEntries] = useState(() => {
+        try { const s = localStorage.getItem('revive-entries'); return s ? JSON.parse(s) : []; }
+        catch { return []; }
+      });
+      const [page, setPage]       = useState('dashboard');
+      const [editing, setEditing] = useState(null);
+
+      useEffect(() => {
+        localStorage.setItem('revive-entries', JSON.stringify(entries));
+      }, [entries]);
+
+      const sort = (arr) => [...arr].sort((a, b) => a.date.localeCompare(b.date));
+
+      const addEntry = useCallback((entry) => {
+        setEntries(p => sort([...p, { ...entry, id: genId() }]));
+        setPage('entries');
+      }, []);
+
+      const updateEntry = useCallback((id, data) => {
+        setEntries(p => sort(p.map(e => e.id === id ? { ...e, ...data } : e)));
+        setEditing(null);
+        setPage('entries');
+      }, []);
+
+      const deleteEntry = useCallback((id) => {
+        setEntries(p => p.filter(e => e.id !== id));
+      }, []);
+
+      const exportCSV = () => {
+        const head = ['Datum','Event','Besucher','Erstbesucher','Entscheidungen','Taufen','Notizen'];
+        const rows = entries.map(e => [
+          e.date, `"${(e.event||'').replace(/"/g,'""')}"`,
+          e.besucher||0, e.erstbesucher||0, e.entscheidungen||0, e.taufen||0,
+          `"${(e.notes||'').replace(/"/g,'""')}"`,
+        ]);
+        const csv = [head, ...rows].map(r => r.join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+        a.download = `revive-stats-${today()}.csv`;
+        a.click();
+      };
+
+      const importCSV = (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const lines = ev.target.result.split('\n').filter(Boolean);
+          const imported = [];
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].match(/(".*?"|[^,]+)/g)?.map(c => c.replace(/^"|"$/g,'').replace(/""/g,'"')) || [];
+            if (cols[0]) imported.push({
+              id: genId(), date: cols[0], event: cols[1]||'',
+              besucher: Number(cols[2])||0, erstbesucher: Number(cols[3])||0,
+              entscheidungen: Number(cols[4])||0, taufen: Number(cols[5])||0,
+              notes: cols[6]||'',
+            });
+          }
+          if (imported.length) {
+            setEntries(p => sort([...p, ...imported]));
+            alert(`${imported.length} Einträge importiert.`);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      };
+
+      const TABS = [
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'form',      label: 'Neuer Eintrag', icon: '➕' },
+        { id: 'entries',   label: 'Einträge',      icon: '📋' },
+      ];
+
+      return (
+        <div className="min-h-screen">
+          {/* Header */}
+          <header style={{ background: 'rgba(15,15,26,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'sticky', top: 0, zIndex: 50 }}>
+            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+              {/* Logo */}
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)' }}>R</div>
+              <div className="mr-2 hidden sm:block">
+                <div className="text-white font-bold text-sm leading-none">REVIVE</div>
+                <div className="text-gray-600 text-xs">Youth Stats</div>
+              </div>
+
+              {/* Nav */}
+              <nav className="flex gap-1 mx-auto">
+                {TABS.map(t => (
+                  <button key={t.id}
+                    onClick={() => { setPage(t.id); if (t.id !== 'form') setEditing(null); }}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                      page === t.id ? 'nav-active' : 'text-gray-500 hover:text-gray-300 border-transparent hover:bg-white/5'
+                    }`}>
+                    <span>{t.icon}</span>
+                    <span className="hidden xs:inline sm:inline">{t.label}</span>
+                  </button>
+                ))}
+              </nav>
+
+              {/* Actions */}
+              <div className="flex gap-2 flex-shrink-0">
+                <button onClick={exportCSV}
+                  className="text-xs text-gray-500 hover:text-gray-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all"
+                  title="Als CSV exportieren">
+                  📥 Export
+                </button>
+                <label className="text-xs text-gray-500 hover:text-gray-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                  title="CSV importieren">
+                  📤 Import
+                  <input type="file" accept=".csv" onChange={importCSV} className="hidden" />
+                </label>
+              </div>
+            </div>
+          </header>
+
+          {/* Main */}
+          <main className="max-w-5xl mx-auto px-4 py-6 pb-12">
+            {page === 'dashboard' && <Dashboard entries={entries} />}
+
+            {page === 'form' && (
+              <EntryForm
+                key={editing?.id || 'new'}
+                initialData={editing}
+                onSave={editing ? (d) => updateEntry(editing.id, d) : addEntry}
+                onCancel={editing ? () => { setEditing(null); setPage('entries'); } : null}
+              />
+            )}
+
+            {page === 'entries' && (
+              <EntryList
+                entries={entries}
+                onEdit={(e) => { setEditing(e); setPage('form'); }}
+                onDelete={deleteEntry}
+                onAdd={() => { setEditing(null); setPage('form'); }}
+              />
+            )}
+          </main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
