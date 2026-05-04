@@ -983,10 +983,12 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
           <h1 className="text-xl font-bold grad">Eintr&auml;ge</h1>
           <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt - {filtered.length} angezeigt</p>
         </div>
-        <button onClick={onAdd}
-          className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all">
-          <SI p={IC.plus} size={13}/> Neu
-        </button>
+        {onAdd && (
+          <button onClick={onAdd}
+            className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all">
+            <SI p={IC.plus} size={13}/> Neu
+          </button>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-4 space-y-3">
@@ -1014,7 +1016,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
       {filtered.length===0 ? (
         <div className="glass rounded-2xl py-16 text-center">
           <div className="text-slate-400 font-medium mb-1">Keine Eintr&auml;ge gefunden</div>
-          {entries.length===0&&<button onClick={onAdd} className="mt-3 text-violet-400 hover:text-violet-300 text-sm">Ersten Eintrag erstellen</button>}
+          {entries.length===0&&onAdd&&<button onClick={onAdd} className="mt-3 text-violet-400 hover:text-violet-300 text-sm">Ersten Eintrag erstellen</button>}
         </div>
       ) : (
         <div className="space-y-2">
@@ -1048,17 +1050,23 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                       </button>
                     )}
                   </div>
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <button onClick={()=>onEdit(e)}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all">
-                      <SI p={IC.edit} size={13}/>
-                    </button>
-                    <button onClick={()=>del(e.id)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${confirm===e.id?'bg-red-900/40 text-red-400':'bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400'}`}
-                      title={confirm===e.id?'Nochmal klicken zum L\u00f6schen':'L\u00f6schen'}>
-                      <SI p={confirm===e.id?IC.warn:IC.trash} size={13}/>
-                    </button>
-                  </div>
+                  {(onEdit||onDelete) && (
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      {onEdit && (
+                        <button onClick={()=>onEdit(e)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all">
+                          <SI p={IC.edit} size={13}/>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button onClick={()=>del(e.id)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${confirm===e.id?'bg-red-900/40 text-red-400':'bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400'}`}
+                          title={confirm===e.id?'Nochmal klicken zum L\u00f6schen':'L\u00f6schen'}>
+                          <SI p={confirm===e.id?IC.warn:IC.trash} size={13}/>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1232,71 +1240,141 @@ const SyncDot = ({ state }) => {
   );
 };
 
+// ‚îÄ‚îÄ Login-Screen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const ADMIN_PW = '0207';
+
+const LoginScreen = ({ onLogin }) => {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+
+  const tryAdmin = () => {
+    if (pw === ADMIN_PW) { setErr(false); onLogin('admin'); }
+    else { setErr(true); setPw(''); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-6 up">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white text-2xl mx-auto mb-4"
+            style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>R</div>
+          <div className="text-white font-bold text-xl">REVIVE</div>
+          <div className="text-slate-500 text-sm">Youth Stats</div>
+        </div>
+
+        <div className="glass rounded-2xl p-6 glow space-y-3">
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider text-center mb-4">Anmelden als</p>
+
+          <button onClick={()=>onLogin('viewer')}
+            className="w-full py-3 rounded-xl text-sm font-semibold transition-all bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-white/20">
+            Viewer &mdash; nur lesen
+          </button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/8"/></div>
+            <div className="relative flex justify-center"><span className="bg-transparent px-2 text-slate-600 text-xs">oder</span></div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <input
+                type={showPw ? 'text' : 'password'}
+                value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}}
+                onKeyDown={e=>e.key==='Enter'&&tryAdmin()}
+                placeholder="Admin-Passwort"
+                className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 text-sm pr-10 ${err?'border-red-500/60':'border-white/10'}`}
+                autoFocus
+              />
+              <button type="button" onClick={()=>setShowPw(p=>!p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                <SI p={showPw ? "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" : "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z"} size={15}/>
+              </button>
+            </div>
+            {err && <p className="text-red-400 text-xs px-1">Falsches Passwort</p>}
+            <button onClick={tryAdmin}
+              className="w-full py-3 rounded-xl text-sm font-semibold transition-all text-white"
+              style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>
+              Als Admin anmelden
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ‚îÄ‚îÄ App ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const sortedArr = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
+
 const App = () => {
+  const [role, setRole] = useState(()=>localStorage.getItem('revive-role')||null);
   const [entries,    setEntries]    = useState(()=>{ try{const s=localStorage.getItem('revive-entries'); return s?JSON.parse(s):[];}catch{return[];} });
   const [eventTypes, setEventTypes] = useState(()=>{ try{const s=localStorage.getItem('revive-etypes'); return s?JSON.parse(s):DEFAULT_TYPES;}catch{return DEFAULT_TYPES;} });
   const [page,    setPage]    = useState('dashboard');
   const [editing, setEditing] = useState(null);
   const [syncState, setSyncState] = useState('connecting');
+  const isAdmin = role === 'admin';
 
-  // Refs to track what we last received from Firestore (to avoid write-back loops)
-  const fsSnap   = useRef({ entries: null, types: null });
-  const fsReady  = useRef(false);
-  const writeTimer = useRef(null);
+  const login = (r) => { setRole(r); localStorage.setItem('revive-role', r); };
+  const logout = () => { setRole(null); localStorage.removeItem('revive-role'); setPage('dashboard'); };
 
-  // ‚îÄ‚îÄ Firestore real-time sync ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Firestore helpers ‚îÄ‚îÄ
+  const writeEntries = (data) => {
+    setSyncState('saving');
+    localStorage.setItem('revive-entries', JSON.stringify(data));
+    db.collection('revive').doc('entries').set({ data })
+      .then(()=>setSyncState('synced'))
+      .catch(()=>setSyncState('error'));
+  };
+  const writeTypes = (data) => {
+    localStorage.setItem('revive-etypes', JSON.stringify(data));
+    db.collection('revive').doc('eventTypes').set({ data }).catch(()=>{});
+  };
+
+  // ‚îÄ‚îÄ Firestore listeners (read-only) ‚îÄ‚îÄ
   useEffect(() => {
-    const unsubE = db.collection('revive').doc('entries').onSnapshot(snap => {
-      const data = snap.data()?.data || [];
-      fsSnap.current.entries = JSON.stringify(data);
-      fsReady.current = true;
-      setEntries(data);
-      localStorage.setItem('revive-entries', JSON.stringify(data));
-      setSyncState('synced');
-    }, () => { fsReady.current = true; setSyncState('error'); });
-
-    const unsubT = db.collection('revive').doc('eventTypes').onSnapshot(snap => {
-      const data = snap.data()?.data;
-      if (data) {
-        fsSnap.current.types = JSON.stringify(data);
-        setEventTypes(data);
-        localStorage.setItem('revive-etypes', JSON.stringify(data));
-      }
-    }, () => {});
-
+    const unsubE = db.collection('revive').doc('entries').onSnapshot(
+      { includeMetadataChanges: true },
+      snap => {
+        if (snap.metadata.hasPendingWrites) return;
+        const data = snap.data()?.data || [];
+        localStorage.setItem('revive-entries', JSON.stringify(data));
+        setEntries(data);
+        setSyncState('synced');
+      },
+      () => setSyncState('error')
+    );
+    const unsubT = db.collection('revive').doc('eventTypes').onSnapshot(
+      { includeMetadataChanges: true },
+      snap => {
+        if (snap.metadata.hasPendingWrites) return;
+        const data = snap.data()?.data;
+        if (data) { localStorage.setItem('revive-etypes', JSON.stringify(data)); setEventTypes(data); }
+        setSyncState('synced');
+      },
+      ()=>{}
+    );
     return () => { unsubE(); unsubT(); };
   }, []);
 
-  // Write entries to Firestore (debounced, skip if data came from Firestore)
-  useEffect(() => {
-    localStorage.setItem('revive-entries', JSON.stringify(entries));
-    if (!fsReady.current) return;
-    if (JSON.stringify(entries) === fsSnap.current.entries) return;
-    setSyncState('saving');
-    clearTimeout(writeTimer.current);
-    writeTimer.current = setTimeout(() => {
-      db.collection('revive').doc('entries').set({ data: entries })
-        .then(() => setSyncState('synced'))
-        .catch(() => setSyncState('error'));
-    }, 1200);
-  }, [entries]);
-
-  // Write eventTypes to Firestore
-  useEffect(() => {
-    localStorage.setItem('revive-etypes', JSON.stringify(eventTypes));
-    if (!fsReady.current) return;
-    if (JSON.stringify(eventTypes) === fsSnap.current.types) return;
-    db.collection('revive').doc('eventTypes').set({ data: eventTypes })
-      .catch(() => {});
-  }, [eventTypes]);
-
-  const sorted = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
-
-  const addEntry    = useCallback(e => { setEntries(p=>sorted([...p,{...e,id:genId()}])); setPage('entries'); }, []);
-  const updateEntry = useCallback((id,d) => { setEntries(p=>sorted(p.map(e=>e.id===id?{...e,...d}:e))); setEditing(null); setPage('entries'); }, []);
-  const deleteEntry = useCallback(id => { setEntries(p=>p.filter(e=>e.id!==id)); }, []);
-
+  // ‚îÄ‚îÄ Mutationen (nur Admin) ‚îÄ‚îÄ
+  const addEntry = (e) => {
+    const next = sortedArr([...entries, {...e, id:genId()}]);
+    setEntries(next); writeEntries(next); setPage('entries');
+  };
+  const updateEntry = (id, d) => {
+    const next = sortedArr(entries.map(e=>e.id===id?{...e,...d}:e));
+    setEntries(next); writeEntries(next); setEditing(null); setPage('entries');
+  };
+  const deleteEntry = (id) => {
+    const next = entries.filter(e=>e.id!==id);
+    setEntries(next); writeEntries(next);
+  };
+  const updateEventTypes = (updater) => {
+    const next = typeof updater==='function' ? updater(eventTypes) : updater;
+    setEventTypes(next); writeTypes(next);
+  };
   const importCSV = ev => {
     const file = ev.target.files?.[0]; if (!file) return;
     const r = new FileReader();
@@ -1308,17 +1386,19 @@ const App = () => {
         if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',
           besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
       }
-      if (imp.length) { setEntries(p=>sorted([...p,...imp])); alert(`${imp.length} Eintr\u00e4ge importiert.`); }
+      if (imp.length) { const next=sortedArr([...entries,...imp]); setEntries(next); writeEntries(next); alert(imp.length+' Eintr√§ge importiert.'); }
     };
     r.readAsText(file); ev.target.value='';
   };
 
+  if (!role) return <LoginScreen onLogin={login}/>;
+
   const TABS = [
     {id:'dashboard', label:'Dashboard',    icon:IC.chart  },
     {id:'compare',   label:'Vergleich',    icon:IC.compare},
-    {id:'form',      label:'Neuer Eintrag',icon:IC.plus   },
-    {id:'entries',   label:'Eintr\u00e4ge',     icon:IC.list   },
-    {id:'types',     label:'Event-Typen',  icon:IC.tag    },
+    ...(isAdmin ? [{id:'form', label:'Neuer Eintrag', icon:IC.plus}] : []),
+    {id:'entries',   label:'Eintr√§ge', icon:IC.list  },
+    ...(isAdmin ? [{id:'types', label:'Event-Typen', icon:IC.tag}] : []),
   ];
 
   return (
@@ -1344,38 +1424,49 @@ const App = () => {
             ))}
           </nav>
 
-          <SyncDot state={syncState}/>
-
-          <div className="flex gap-1.5 flex-shrink-0">
-            <button onClick={()=>exportExcel(entries,eventTypes)}
-              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs"
-              title="Als Excel-Datei exportieren">
-              <SI p={IC.download} size={13}/><span className="hidden sm:inline">Export</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <SyncDot state={syncState}/>
+            <span className={`pill text-xs ${isAdmin?'bg-violet-500/20 text-violet-300':'bg-slate-700/40 text-slate-400'}`}>
+              {isAdmin?'Admin':'Viewer'}
+            </span>
+            <button onClick={logout} title="Abmelden"
+              className="text-slate-600 hover:text-slate-400 transition-all">
+              <SI p="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" size={14}/>
             </button>
-            <label className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs cursor-pointer"
-              title="CSV importieren">
-              <SI p={IC.upload} size={13}/><span className="hidden sm:inline">Import</span>
-              <input type="file" accept=".csv" onChange={importCSV} className="hidden"/>
-            </label>
           </div>
+
+          {isAdmin && (
+            <div className="flex gap-1.5 flex-shrink-0">
+              <button onClick={()=>exportExcel(entries,eventTypes)}
+                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs"
+                title="Als Excel-Datei exportieren">
+                <SI p={IC.download} size={13}/><span className="hidden sm:inline">Export</span>
+              </button>
+              <label className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs cursor-pointer"
+                title="CSV importieren">
+                <SI p={IC.upload} size={13}/><span className="hidden sm:inline">Import</span>
+                <input type="file" accept=".csv" onChange={importCSV} className="hidden"/>
+              </label>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 pb-12">
         {page==='dashboard' && <Dashboard entries={entries} eventTypes={eventTypes}/>}
         {page==='compare'   && <Comparison entries={entries} eventTypes={eventTypes}/>}
-        {page==='form'      && (
+        {page==='form' && isAdmin && (
           <EntryForm key={editing?.id||'new'} initialData={editing} eventTypes={eventTypes}
             onSave={editing?(d)=>updateEntry(editing.id,d):addEntry}
             onCancel={editing?()=>{setEditing(null);setPage('entries');}:null}/>
         )}
-        {page==='entries'   && (
+        {page==='entries' && (
           <EntryList entries={entries} eventTypes={eventTypes}
-            onEdit={e=>{setEditing(e);setPage('form');}}
-            onDelete={deleteEntry}
-            onAdd={()=>{setEditing(null);setPage('form');}}/>
+            onEdit={isAdmin?e=>{setEditing(e);setPage('form');}:null}
+            onDelete={isAdmin?deleteEntry:null}
+            onAdd={isAdmin?()=>{setEditing(null);setPage('form');}:null}/>
         )}
-        {page==='types'     && <EventTypeManager eventTypes={eventTypes} setEventTypes={setEventTypes} entries={entries}/>}
+        {page==='types' && isAdmin && <EventTypeManager eventTypes={eventTypes} setEventTypes={updateEventTypes} entries={entries}/>}
       </main>
     </div>
   );
