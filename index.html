@@ -1,4 +1,4 @@
-Ôªø<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -489,7 +489,7 @@ const Dashboard = ({ entries, eventTypes }) => {
       </div>
 
       {/* Hauptgrafik */}
-      <ChartCard title="Entwicklung \u00fcber Zeit"
+      <ChartCard title={"Entwicklung \u00fcber Zeit"}
         extra={
           <div className="flex gap-1">
             {[['bar','Balken'],['line','Linie'],['area','Fl\u00e4che']].map(([v,l])=>(
@@ -587,70 +587,68 @@ const Dashboard = ({ entries, eventTypes }) => {
 };
 
 // ‚îÄ‚îÄ Zeitraum-Vergleich ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const PERIOD_PALETTE = ['#6366f1','#ec4899','#10b981','#f59e0b','#06b6d4','#a855f7'];
+
 const Comparison = ({ entries, eventTypes }) => {
-  const [mode,   setMode]  = useState('month');
-  const [ymA,    setYmA]   = useState('');
-  const [ymB,    setYmB]   = useState('');
-  const [yearA,  setYearA] = useState('');
-  const [yearB,  setYearB] = useState('');
-  const [fromA,  setFromA] = useState(daysAgo(60));
-  const [toA,    setToA]   = useState(today());
-  const [fromB,  setFromB] = useState(daysAgo(120));
-  const [toB,    setToB]   = useState(daysAgo(61));
-  const [etF,    setEtF]   = useState('all');
+  const [mode, setMode] = useState('month');
+  const [etF,  setEtF]  = useState('all');
+  const [periods, setPeriods] = useState([
+    { id:'a', ym:'', year:'', from:daysAgo(60),  to:today()       },
+    { id:'b', ym:'', year:'', from:daysAgo(120), to:daysAgo(61)  },
+  ]);
 
   const availYM    = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,7)))].sort().reverse(),[entries]);
   const availYears = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,4)))].sort().reverse(),[entries]);
 
-  const [rA, rB] = useMemo(()=>{
-    const get = (f,t) => {
-      let list = entries.filter(e=>e.date>=f&&e.date<=t);
-      if (etF!=='all') list = list.filter(e=>e.eventTypeId===etF);
-      return list;
-    };
-    if (mode==='month') {
-      if (!ymA||!ymB) return [[],[]];
-      return [get(firstOfMonth(ymA),lastOfMonth(ymA)), get(firstOfMonth(ymB),lastOfMonth(ymB))];
-    }
-    if (mode==='year') {
-      if (!yearA||!yearB) return [[],[]];
-      return [get(`${yearA}-01-01`,`${yearA}-12-31`), get(`${yearB}-01-01`,`${yearB}-12-31`)];
-    }
-    return [get(fromA,toA), get(fromB,toB)];
-  },[entries, mode, ymA, ymB, yearA, yearB, fromA, toA, fromB, toB, etF]);
+  const getRaw = p => {
+    if (mode==='month')  return p.ym   ? entries.filter(e=>e.date>=firstOfMonth(p.ym)&&e.date<=lastOfMonth(p.ym)) : [];
+    if (mode==='year')   return p.year ? entries.filter(e=>e.date>=`${p.year}-01-01`&&e.date<=`${p.year}-12-31`) : [];
+    return entries.filter(e=>e.date>=p.from&&e.date<=p.to);
+  };
 
-  const tA = useMemo(()=>calcTotals(rA),[rA]);
-  const tB = useMemo(()=>calcTotals(rB),[rB]);
+  const periodData = useMemo(()=>periods.map(p=>{
+    let list = getRaw(p);
+    if (etF!=='all') list = list.filter(e=>e.eventTypeId===etF);
+    return { ...p, list, totals: calcTotals(list) };
+  }),[periods, entries, mode, etF]);
 
-  const lA = mode==='month'?(ymA?monthLabel(ymA):'Zeitraum A'):mode==='year'?(yearA||'Jahr A'):'Zeitraum A';
-  const lB = mode==='month'?(ymB?monthLabel(ymB):'Zeitraum B'):mode==='year'?(yearB||'Jahr B'):'Zeitraum B';
-  const hasData = rA.length>0||rB.length>0;
+  const getLabel = p =>
+    mode==='month' ? (p.ym   ? monthLabel(p.ym)   : `Zeitraum ${p.id.toUpperCase()}`) :
+    mode==='year'  ? (p.year ? p.year              : `Jahr ${p.id.toUpperCase()}`)     :
+                     `Zeitraum ${p.id.toUpperCase()}`;
+
+  const hasData = periodData.some(pd=>pd.list.length>0);
+
+  const addPeriod = () => {
+    if (periods.length>=6) return;
+    const letters='abcdefghijklmnopqrstuvwxyz';
+    const nextId = letters[periods.length];
+    setPeriods(p=>[...p,{id:nextId,ym:'',year:'',from:daysAgo(180+periods.length*60),to:daysAgo(121+periods.length*60)}]);
+  };
+  const removePeriod = id => { if (periods.length<=2) return; setPeriods(p=>p.filter(pd=>pd.id!==id)); };
+  const updatePeriod = (id,key,val) => setPeriods(p=>p.map(pd=>pd.id===id?{...pd,[key]:val}:pd));
+
+  const compId = `cmp-${mode}-${periods.map(p=>p.ym+p.year+p.from+p.to).join('|')}-${etF}`;
+  const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
 
   const compData = hasData ? {
     labels: METRICS.map(m=>m.label),
-    datasets: [
-      {label:lA, data:METRICS.map(m=>tA[m.key]), backgroundColor:'#6366f1bb', borderRadius:4},
-      {label:lB, data:METRICS.map(m=>tB[m.key]), backgroundColor:'#ec4899bb', borderRadius:4},
-    ],
+    datasets: periodData.map((pd,i)=>({
+      label: getLabel(pd),
+      data: METRICS.map(m=>pd.totals[m.key]),
+      backgroundColor: PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'bb',
+      borderRadius: 4,
+    })),
   } : null;
-
-  const compId = `cmp-${mode}-${ymA}-${ymB}-${yearA}-${yearB}-${fromA}-${toA}-${fromB}-${toB}-${etF}`;
-  const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
-
-  const Delta = ({a,b}) => {
-    const d=b-a, p=dPct(a,b);
-    if (a===0&&b===0) return <span className="text-slate-700 text-xs">&mdash;</span>;
-    const cls = d>0?'text-emerald-400':d<0?'text-red-400':'text-slate-500';
-    return <span className={`text-xs font-semibold ${cls}`}>{d>0?'+':''}{d} ({d>0?'+':''}{p}%)</span>;
-  };
 
   return (
     <div className="space-y-5 up">
       <div>
         <h1 className="text-xl font-bold grad">Zeitraum-Vergleich</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Zwei Zeitr&auml;ume direkt nebeneinander vergleichen</p>
+        <p className="text-slate-500 text-sm mt-0.5">Mehrere Zeitr&auml;ume gleichzeitig vergleichen</p>
       </div>
 
+      {/* Controls */}
       <div className="glass rounded-2xl p-5 space-y-4">
         <div className="flex gap-2 flex-wrap items-center">
           {[['month','Nach Monat'],['year','Nach Jahr'],['custom','Benutzerdefiniert']].map(([v,l])=>(
@@ -667,129 +665,151 @@ const Comparison = ({ entries, eventTypes }) => {
           </div>
         </div>
 
-        {mode==='month' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
-              <select value={ymA} onChange={e=>setYmA(e.target.value)} className={inp+" w-full"}>
-                <option value="">&mdash; Monat w&auml;hlen &mdash;</option>
-                {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
-              <select value={ymB} onChange={e=>setYmB(e.target.value)} className={inp+" w-full"}>
-                <option value="">&mdash; Monat w&auml;hlen &mdash;</option>
-                {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
-        {mode==='year' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Jahr A</label>
-              <select value={yearA} onChange={e=>setYearA(e.target.value)} className={inp+" w-full"}>
-                <option value="">&mdash; Jahr w&auml;hlen &mdash;</option>
-                {availYears.map(y=><option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Jahr B</label>
-              <select value={yearB} onChange={e=>setYearB(e.target.value)} className={inp+" w-full"}>
-                <option value="">&mdash; Jahr w&auml;hlen &mdash;</option>
-                {availYears.map(y=><option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
-        {mode==='custom' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
-              <div className="flex gap-2 items-center">
-                <input type="date" value={fromA} onChange={e=>setFromA(e.target.value)} className={inp+" flex-1"}/>
-                <span className="text-slate-600 text-xs">-</span>
-                <input type="date" value={toA} onChange={e=>setToA(e.target.value)} className={inp+" flex-1"}/>
+        {/* Period cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {periods.map((p,i)=>{
+            const col = PERIOD_PALETTE[i%PERIOD_PALETTE.length];
+            return (
+              <div key={p.id} className="p-3 rounded-xl" style={{border:`1px solid ${col}44`,background:`${col}11`}}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold" style={{color:col}}>Zeitraum {p.id.toUpperCase()}</span>
+                  {periods.length>2 && (
+                    <button onClick={()=>removePeriod(p.id)} className="text-slate-600 hover:text-red-400 transition-all ml-2">
+                      <SI p={IC.x} size={12}/>
+                    </button>
+                  )}
+                </div>
+                {mode==='month' && (
+                  <select value={p.ym} onChange={e=>updatePeriod(p.id,'ym',e.target.value)} className={inp+" w-full"}>
+                    <option value="">&mdash; Monat w&auml;hlen &mdash;</option>
+                    {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
+                  </select>
+                )}
+                {mode==='year' && (
+                  <select value={p.year} onChange={e=>updatePeriod(p.id,'year',e.target.value)} className={inp+" w-full"}>
+                    <option value="">&mdash; Jahr w&auml;hlen &mdash;</option>
+                    {availYears.map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                )}
+                {mode==='custom' && (
+                  <div className="flex gap-2 items-center">
+                    <input type="date" value={p.from} onChange={e=>updatePeriod(p.id,'from',e.target.value)} className={inp+" flex-1"}/>
+                    <span className="text-slate-600 text-xs">-</span>
+                    <input type="date" value={p.to} onChange={e=>updatePeriod(p.id,'to',e.target.value)} className={inp+" flex-1"}/>
+                  </div>
+                )}
               </div>
-            </div>
-            <div>
-              <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
-              <div className="flex gap-2 items-center">
-                <input type="date" value={fromB} onChange={e=>setFromB(e.target.value)} className={inp+" flex-1"}/>
-                <span className="text-slate-600 text-xs">-</span>
-                <input type="date" value={toB} onChange={e=>setToB(e.target.value)} className={inp+" flex-1"}/>
-              </div>
-            </div>
-          </div>
+            );
+          })}
+        </div>
+
+        {periods.length<6 && (
+          <button onClick={addPeriod}
+            className="flex items-center gap-2 text-slate-500 hover:text-violet-400 text-xs font-medium transition-all px-3 py-2 rounded-xl hover:bg-white/5 border border-dashed border-white/10 hover:border-violet-500/30 w-full justify-center">
+            <SI p={IC.plus} size={13}/>
+            Weiteren Zeitraum hinzuf&uuml;gen
+          </button>
         )}
       </div>
 
       {hasData ? (
         <>
-          <div className="glass rounded-2xl p-5 glow">
+          {/* Summary table */}
+          <div className="glass rounded-2xl p-5 glow overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-                  <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
-                  <th className="text-right pb-3 font-semibold text-indigo-400">{lA}<span className="text-slate-600 text-xs font-normal ml-1">({rA.length} Events)</span></th>
-                  <th className="text-right pb-3 font-semibold text-pink-400">{lB}<span className="text-slate-600 text-xs font-normal ml-1">({rB.length} Events)</span></th>
-                  <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
+                  <th className="text-left pb-3 text-slate-500 text-xs font-medium pr-3">Metrik</th>
+                  {periodData.map((pd,i)=>(
+                    <th key={pd.id} className="text-right pb-3 font-semibold text-xs whitespace-nowrap px-2"
+                      style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>
+                      {getLabel(pd)}<br/>
+                      <span className="text-slate-600 font-normal">({pd.list.length} Events)</span>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {METRICS.map(m=>(
                   <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-                    <td className="py-3 pr-4">
-                      <div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300 font-medium">{m.label}</span></div>
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="dot" style={{background:m.color}}/>
+                        <span className="text-slate-300 font-medium whitespace-nowrap">{m.label}</span>
+                      </div>
                     </td>
-                    <td className="py-3 text-right text-2xl font-bold text-indigo-300">{tA[m.key]}</td>
-                    <td className="py-3 text-right text-2xl font-bold text-pink-300">{tB[m.key]}</td>
-                    <td className="py-3 text-right"><Delta a={tA[m.key]} b={tB[m.key]}/></td>
+                    {periodData.map((pd,i)=>(
+                      <td key={pd.id} className="py-3 text-right text-xl font-bold px-2"
+                        style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'dd'}}>
+                        {pd.totals[m.key]}
+                      </td>
+                    ))}
                   </tr>
                 ))}
-                <tr style={{borderTop:'1px solid rgba(255,255,255,0.08)'}}>
-                  <td className="py-2 text-slate-500 text-xs">Eintr&auml;ge gesamt</td>
-                  <td className="py-2 text-right text-slate-400 font-medium">{rA.length}</td>
-                  <td className="py-2 text-right text-slate-400 font-medium">{rB.length}</td>
-                  <td className="py-2 text-right"><Delta a={rA.length} b={rB.length}/></td>
-                </tr>
               </tbody>
             </table>
           </div>
 
+          {/* Grouped bar chart */}
           {compData && (
-            <ChartCard title={`${lA} vs. ${lB}`}>
-              <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={180}/>
+            <ChartCard title="Vergleich gesamt &mdash; alle Metriken">
+              <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={200}/>
             </ChartCard>
           )}
 
-          {rA.length>0 && rB.length>0 && (
-            <div className="glass rounded-2xl p-5 glow">
+          {/* Per-metric bar charts */}
+          <div className="grid grid-cols-2 gap-4">
+            {METRICS.map(m=>{
+              const mData = hasData ? {
+                labels: periodData.map((_,i)=>`Zeitraum ${periods[i].id.toUpperCase()}`),
+                datasets:[{
+                  label: m.label,
+                  data: periodData.map(pd=>pd.totals[m.key]),
+                  backgroundColor: periodData.map((_,i)=>PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'cc'),
+                  borderRadius: 4,
+                }],
+              } : null;
+              return mData ? (
+                <ChartCard key={m.key} title={m.label}>
+                  <ChartCanvas id={`cmp-m-${m.key}-${compId}`} type="bar" data={mData}
+                    options={mkCfg({plugins:{legend:{display:false}}})} h={130}/>
+                </ChartCard>
+              ) : null;
+            })}
+          </div>
+
+          {/* Avg per event */}
+          {periodData.filter(pd=>pd.list.length>0).length>=2 && (
+            <div className="glass rounded-2xl p-5 glow overflow-x-auto">
               <h3 className="font-semibold text-slate-200 text-sm mb-4">Durchschnitt pro Event</h3>
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
-                    <th className="text-left pb-3 text-slate-500 text-xs font-medium">Metrik</th>
-                    <th className="text-right pb-3 text-indigo-400 text-xs font-medium">{lA}</th>
-                    <th className="text-right pb-3 text-pink-400 text-xs font-medium">{lB}</th>
-                    <th className="text-right pb-3 text-slate-500 text-xs font-medium">Differenz</th>
+                    <th className="text-left pb-3 text-slate-500 text-xs font-medium pr-3">Metrik</th>
+                    {periodData.map((pd,i)=>(
+                      <th key={pd.id} className="text-right pb-3 text-xs font-medium px-2 whitespace-nowrap"
+                        style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>
+                        {getLabel(pd)}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.map(m=>{
-                    const aA=rA.length?tA[m.key]/rA.length:0;
-                    const aB=rB.length?tB[m.key]/rB.length:0;
-                    const diff=aB-aA;
-                    return (
-                      <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-                        <td className="py-2.5"><div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300">{m.label}</span></div></td>
-                        <td className="py-2.5 text-right text-slate-200 font-semibold">{aA.toFixed(1)}</td>
-                        <td className="py-2.5 text-right text-slate-200 font-semibold">{aB.toFixed(1)}</td>
-                        <td className="py-2.5 text-right"><span className={`text-xs font-semibold ${diff>0?'text-emerald-400':diff<0?'text-red-400':'text-slate-500'}`}>{diff>0?'+':''}{diff.toFixed(1)}</span></td>
-                      </tr>
-                    );
-                  })}
+                  {METRICS.map(m=>(
+                    <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
+                      <td className="py-2.5 pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="dot" style={{background:m.color}}/>
+                          <span className="text-slate-300 whitespace-nowrap">{m.label}</span>
+                        </div>
+                      </td>
+                      {periodData.map(pd=>(
+                        <td key={pd.id} className="py-2.5 text-right text-slate-200 font-semibold px-2">
+                          {pd.list.length ? (pd.totals[m.key]/pd.list.length).toFixed(1) : <span className="text-slate-700">&mdash;</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -798,7 +818,7 @@ const Comparison = ({ entries, eventTypes }) => {
       ) : (
         <div className="glass rounded-2xl py-16 text-center">
           <div className="text-slate-400 font-medium mb-1">Zeitr&auml;ume ausw&auml;hlen</div>
-          <div className="text-slate-600 text-sm">W&auml;hle oben zwei Zeitr&auml;ume zum Vergleichen aus</div>
+          <div className="text-slate-600 text-sm">W&auml;hle oben Zeitr&auml;ume zum Vergleichen aus</div>
         </div>
       )}
     </div>
@@ -1036,6 +1056,38 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
 };
 
 // ‚îÄ‚îÄ Event-Typ-Verwaltung ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const SWATCH_COLORS = [
+  '#6366f1','#8b5cf6','#a855f7','#ec4899',
+  '#ef4444','#f97316','#f59e0b','#eab308',
+  '#10b981','#14b8a6','#06b6d4','#3b82f6',
+];
+
+const ColorPicker = ({ value, onChange }) => (
+  <div className="space-y-2">
+    <div className="flex flex-wrap gap-1.5">
+      {SWATCH_COLORS.map(c=>(
+        <button key={c} type="button" onClick={()=>onChange(c)}
+          className="w-6 h-6 rounded-full flex-shrink-0 transition-all hover:scale-110"
+          style={{
+            background: c,
+            outline: value===c ? `2px solid ${c}` : '2px solid transparent',
+            outlineOffset: '2px',
+          }}/>
+      ))}
+      <label className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center bg-white/10 border border-white/20 cursor-pointer hover:bg-white/20 transition-all relative overflow-hidden"
+        title="Eigene Farbe">
+        <span className="text-slate-400 text-xs leading-none select-none">+</span>
+        <input type="color" value={value} onChange={e=>onChange(e.target.value)}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"/>
+      </label>
+    </div>
+    <div className="flex items-center gap-2">
+      <span className="w-4 h-4 rounded flex-shrink-0" style={{background:value}}/>
+      <span className="text-slate-500 text-xs font-mono">{value}</span>
+    </div>
+  </div>
+);
+
 const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
   const [name,      setName]      = useState('');
   const [color,     setColor]     = useState('#8b5cf6');
@@ -1079,16 +1131,12 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
         <div className="flex gap-2">
           <input value={name} onChange={e=>setName(e.target.value)} placeholder="Name des Event-Typs"
             className={inp+" flex-1"} onKeyDown={e=>e.key==='Enter'&&add()}/>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3">
-            <span className="dot" style={{width:14,height:14,background:color,borderRadius:3}}/>
-            <input type="color" value={color} onChange={e=>setColor(e.target.value)}
-              className="w-6 h-6 cursor-pointer bg-transparent border-0" title="Farbe w\u00e4hlen"/>
-          </div>
           <button onClick={add}
             className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap">
             Hinzuf&uuml;gen
           </button>
         </div>
+        <ColorPicker value={color} onChange={setColor}/>
         <label className="flex items-center gap-3 cursor-pointer">
           <button type="button" onClick={()=>setIsRange(p=>!p)}
             className={`toggle ${isRange?'on':''}`}
@@ -1101,28 +1149,29 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
       <div className="glass rounded-2xl p-5 glow space-y-2">
         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3">Vorhandene Typen</p>
         {eventTypes.map(t=>(
-          <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/6">
+          <div key={t.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/6">
             {editId===t.id ? (
-              <>
-                <input type="color" value={editColor} onChange={e=>setEditColor(e.target.value)}
-                  className="w-7 h-7 rounded cursor-pointer bg-transparent border-0 flex-shrink-0"/>
-                <input value={editName} onChange={e=>setEditName(e.target.value)}
-                  className={inp+" flex-1 py-1.5"} autoFocus onKeyDown={e=>e.key==='Enter'&&save(t.id)}/>
-                <button type="button" onClick={()=>setEditRange(p=>!p)}
-                  className={`toggle flex-shrink-0 ${editRange?'on':''}`}
-                  style={{background:editRange?'#f59e0b':'rgba(255,255,255,0.1)'}}
-                  title={editRange?'Zeitraum-Event':'Einzeldatum'}/>
-                <button onClick={()=>save(t.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition-all">
-                  <SI p={IC.check} size={13}/>
-                </button>
-                <button onClick={()=>setEditId(null)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:bg-white/10 transition-all">
-                  <SI p={IC.x} size={13}/>
-                </button>
-              </>
+              <div className="space-y-3">
+                <div className="flex gap-2 items-center">
+                  <input value={editName} onChange={e=>setEditName(e.target.value)}
+                    className={inp+" flex-1 py-1.5"} autoFocus onKeyDown={e=>e.key==='Enter'&&save(t.id)}/>
+                  <button type="button" onClick={()=>setEditRange(p=>!p)}
+                    className={`toggle flex-shrink-0 ${editRange?'on':''}`}
+                    style={{background:editRange?'#f59e0b':'rgba(255,255,255,0.1)'}}
+                    title={editRange?'Zeitraum-Event':'Einzeldatum'}/>
+                  <button onClick={()=>save(t.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition-all">
+                    <SI p={IC.check} size={13}/>
+                  </button>
+                  <button onClick={()=>setEditId(null)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:bg-white/10 transition-all">
+                    <SI p={IC.x} size={13}/>
+                  </button>
+                </div>
+                <ColorPicker value={editColor} onChange={setEditColor}/>
+              </div>
             ) : (
-              <>
+              <div className="flex items-center gap-3">
                 <span className="dot" style={{width:12,height:12,borderRadius:3,background:t.color,flexShrink:0}}/>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -1140,7 +1189,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400 transition-all">
                   <SI p={IC.trash} size={13}/>
                 </button>
-              </>
+              </div>
             )}
           </div>
         ))}
