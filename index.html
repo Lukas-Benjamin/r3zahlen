@@ -12,6 +12,19 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey:            "AIzaSyAB9ugtPhwbXTJc9mZia6a_x54LEYLz5PE",
+      authDomain:        "r3zahlen.firebaseapp.com",
+      projectId:         "r3zahlen",
+      storageBucket:     "r3zahlen.firebasestorage.app",
+      messagingSenderId: "1071865171603",
+      appId:             "1:1071865171603:web:399ef56359d043e7544766"
+    });
+    const db = firebase.firestore();
+  </script>
   <style>
     * { box-sizing: border-box; }
     ::-webkit-scrollbar { width: 5px; }
@@ -26,6 +39,7 @@
     input:focus, textarea:focus, select:focus { outline: none; border-color: #8b5cf6 !important; }
     select option { background: #1e1b2e; color: #e2e8f0; }
     @keyframes up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     .up { animation: up .2s ease; }
     .pill { display:inline-flex; align-items:center; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
     .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
@@ -1198,15 +1212,85 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
   );
 };
 
+// ‚îÄ‚îÄ Sync-Status-Anzeige ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const SyncDot = ({ state }) => {
+  const MAP = {
+    connecting: ['#64748b', 'Verbinden‚Ä¶'],
+    synced:     ['#10b981', 'Synchronisiert'],
+    saving:     ['#f59e0b', 'Speichern‚Ä¶'],
+    error:      ['#ef4444', 'Offline'],
+  };
+  const [col, label] = MAP[state] || MAP.connecting;
+  return (
+    <div className="flex items-center gap-1.5 flex-shrink-0" title={label}>
+      <span style={{
+        width:7, height:7, borderRadius:'50%', background:col, display:'inline-block',
+        boxShadow: state==='synced' ? `0 0 5px ${col}99` : 'none',
+        animation: state==='saving' ? 'pulse 1s infinite' : 'none',
+      }}/>
+      <span className="text-xs text-slate-500 hidden md:block">{label}</span>
+    </div>
+  );
+};
+
 // ‚îÄ‚îÄ App ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const App = () => {
   const [entries,    setEntries]    = useState(()=>{ try{const s=localStorage.getItem('revive-entries'); return s?JSON.parse(s):[];}catch{return[];} });
   const [eventTypes, setEventTypes] = useState(()=>{ try{const s=localStorage.getItem('revive-etypes'); return s?JSON.parse(s):DEFAULT_TYPES;}catch{return DEFAULT_TYPES;} });
   const [page,    setPage]    = useState('dashboard');
   const [editing, setEditing] = useState(null);
+  const [syncState, setSyncState] = useState('connecting');
 
-  useEffect(()=>{ localStorage.setItem('revive-entries', JSON.stringify(entries)); }, [entries]);
-  useEffect(()=>{ localStorage.setItem('revive-etypes',  JSON.stringify(eventTypes)); }, [eventTypes]);
+  // Refs to track what we last received from Firestore (to avoid write-back loops)
+  const fsSnap   = useRef({ entries: null, types: null });
+  const fsReady  = useRef(false);
+  const writeTimer = useRef(null);
+
+  // ‚îÄ‚îÄ Firestore real-time sync ‚îÄ‚îÄ
+  useEffect(() => {
+    const unsubE = db.collection('revive').doc('entries').onSnapshot(snap => {
+      const data = snap.data()?.data || [];
+      fsSnap.current.entries = JSON.stringify(data);
+      fsReady.current = true;
+      setEntries(data);
+      localStorage.setItem('revive-entries', JSON.stringify(data));
+      setSyncState('synced');
+    }, () => { fsReady.current = true; setSyncState('error'); });
+
+    const unsubT = db.collection('revive').doc('eventTypes').onSnapshot(snap => {
+      const data = snap.data()?.data;
+      if (data) {
+        fsSnap.current.types = JSON.stringify(data);
+        setEventTypes(data);
+        localStorage.setItem('revive-etypes', JSON.stringify(data));
+      }
+    }, () => {});
+
+    return () => { unsubE(); unsubT(); };
+  }, []);
+
+  // Write entries to Firestore (debounced, skip if data came from Firestore)
+  useEffect(() => {
+    localStorage.setItem('revive-entries', JSON.stringify(entries));
+    if (!fsReady.current) return;
+    if (JSON.stringify(entries) === fsSnap.current.entries) return;
+    setSyncState('saving');
+    clearTimeout(writeTimer.current);
+    writeTimer.current = setTimeout(() => {
+      db.collection('revive').doc('entries').set({ data: entries })
+        .then(() => setSyncState('synced'))
+        .catch(() => setSyncState('error'));
+    }, 1200);
+  }, [entries]);
+
+  // Write eventTypes to Firestore
+  useEffect(() => {
+    localStorage.setItem('revive-etypes', JSON.stringify(eventTypes));
+    if (!fsReady.current) return;
+    if (JSON.stringify(eventTypes) === fsSnap.current.types) return;
+    db.collection('revive').doc('eventTypes').set({ data: eventTypes })
+      .catch(() => {});
+  }, [eventTypes]);
 
   const sorted = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
 
@@ -1260,6 +1344,8 @@ const App = () => {
               </button>
             ))}
           </nav>
+
+          <SyncDot state={syncState}/>
 
           <div className="flex gap-1.5 flex-shrink-0">
             <button onClick={()=>exportExcel(entries,eventTypes)}
