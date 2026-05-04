@@ -94,10 +94,11 @@ const TOOLTIP = {
 };
 const fmtTick = v => v >= 10000 ? (v/1000).toFixed(0)+'k' : v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v;
 
+// mkCfg: beginAtZero=true fuer Balken, false fuer Linien (auto-skaliert auf Datenwerte)
 const mkCfg = (extra = {}) => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: { duration: 400 },
+  animation: { duration: 350 },
   plugins: {
     legend: { labels: { color: '#94a3b8', padding: 12, usePointStyle: true, font: { ...FONT, size: 11 } } },
     tooltip: TOOLTIP,
@@ -111,8 +112,7 @@ const mkCfg = (extra = {}) => ({
     y: {
       ticks: { color: '#475569', precision: 0, maxTicksLimit: 5, font: { ...FONT, size: 10 }, callback: fmtTick },
       grid: { color: 'rgba(255,255,255,0.04)' },
-      beginAtZero: true,
-      grace: '4%',
+      beginAtZero: extra.beginAtZero !== false,  // default true; set false fuer Linien
     },
     ...((extra.scales) || {}),
   },
@@ -134,7 +134,7 @@ const today  = () => new Date().toISOString().split('T')[0];
 const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().split('T')[0];
 const fmtDe  = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return `${dd}.${m}.${y}`; };
 const fmtShort = d => { if (!d) return ''; const [,m,dd] = d.split('-'); return `${dd}.${m}`; };
-const fmtRange = (d, t) => t && t !== d ? `${fmtDe(d)} ‚Äì ${fmtDe(t)}` : fmtDe(d);
+const fmtRange = (d, t) => t && t !== d ? `${fmtDe(d)} - ${fmtDe(t)}` : fmtDe(d);
 const monthLabel = ym => {
   const [y, m] = ym.split('-');
   return new Date(y, m - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
@@ -215,7 +215,7 @@ const exportExcel = (entries, eventTypes) => {
     [H('REVIVE Youth Stats','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764')],
     [G(`Exportiert: ${fmtDe(today())}  |  Eintr√§ge gesamt: ${entries.length}`), G(''), G(''), G(''), G(''), G('')],
     [],
-    [H('Metrik','5B21B6'), H('Gesamt','5B21B6'), H('√ò pro Event','5B21B6'), H('Maximum','5B21B6'), H('Minimum','5B21B6'), H('Top-Event','5B21B6')],
+    [H('Metrik','5B21B6'), H('Gesamt','5B21B6'), H('Avg. pro Event','5B21B6'), H('Maximum','5B21B6'), H('Minimum','5B21B6'), H('Top-Event','5B21B6')],
     ...METRICS.map(m => {
       const vals = entries.map(e=>Number(e[m.key])||0);
       const maxIdx = vals.indexOf(Math.max(...vals));
@@ -225,7 +225,7 @@ const exportExcel = (entries, eventTypes) => {
     }),
     [],
     [H('Nach Event-Typ','5B21B6'), H('Events','5B21B6'), H('Besucher','5B21B6'),
-     H('Erstbesucher','5B21B6'), H('Entscheidungen','5B21B6'), H('Taufen','5B21B6'), H('√ò Besucher','5B21B6')],
+     H('Erstbesucher','5B21B6'), H('Entscheidungen','5B21B6'), H('Taufen','5B21B6'), H('Avg. Besucher','5B21B6')],
     ...etSection,
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(ws1rows);
@@ -263,7 +263,7 @@ const exportExcel = (entries, eventTypes) => {
   const months = Object.entries(mMap).sort();
   const ws3rows = [
     [H('Monat'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
-     H('√ò Besucher'),H('√ò Erstbesucher'),H('√ò Entscheidungen'),H('√ò Taufen')],
+     H('Avg. Besucher'),H('Avg. Erstbesucher'),H('Avg. Entscheidungen'),H('Avg. Taufen')],
     ...months.map(([k,v])=>[
       B(monthLabel(k)), N(v.count),
       N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
@@ -287,7 +287,7 @@ const exportExcel = (entries, eventTypes) => {
     qMap[k].count++;
   });
   const ws4rows = [
-    [H('Quartal'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('√ò Besucher'),H('√ò Erstbesucher')],
+    [H('Quartal'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Avg. Besucher'),H('Avg. Erstbesucher')],
     ...Object.entries(qMap).sort().map(([k,v])=>[
       B(k), N(v.count),
       N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
@@ -308,7 +308,7 @@ const exportExcel = (entries, eventTypes) => {
   });
   const ws5rows = [
     [H('Jahr'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
-     H('√ò Besucher/Event'),H('√ò Erstbesucher/Event'),H('√ò Entscheidungen/Event'),H('√ò Taufen/Event')],
+     H('Avg. Besucher/Event'),H('Avg. Erstbesucher/Event'),H('Avg. Entscheidungen/Event'),H('Avg. Taufen/Event')],
     ...Object.entries(yMap).sort().map(([k,v])=>[
       B(k), N(v.count),
       N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
@@ -482,7 +482,7 @@ const Dashboard = ({ entries, eventTypes }) => {
             </div>
             <div className="text-3xl font-bold" style={{color:m.color}}>{totals[m.key]}</div>
             <div className="text-slate-600 text-xs mt-1">
-              {filtered.length ? `√ò ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '‚Äî'}
+              {filtered.length ? `Avg. ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '‚Äî'}
             </div>
           </div>
         ))}
@@ -500,7 +500,8 @@ const Dashboard = ({ entries, eventTypes }) => {
             ))}
           </div>
         }>
-        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={190}/>
+        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null}
+          options={mkCfg({ beginAtZero: view==='bar' })} h={190}/>
       </ChartCard>
 
       {/* Verteilung + Kumulativ */}
@@ -511,7 +512,7 @@ const Dashboard = ({ entries, eventTypes }) => {
         </ChartCard>
         <ChartCard title="Kumulativer Verlauf">
           <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line"
-            data={filtered.length?cumulData:null} options={mkCfg()} h={170}/>
+            data={filtered.length?cumulData:null} options={mkCfg({beginAtZero:false})} h={170}/>
         </ChartCard>
       </div>
 
@@ -708,7 +709,7 @@ const Comparison = ({ entries, eventTypes }) => {
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
               <div className="flex gap-2 items-center">
                 <input type="date" value={fromA} onChange={e=>setFromA(e.target.value)} className={inp+" flex-1"}/>
-                <span className="text-slate-600 text-xs">‚Äì</span>
+                <span className="text-slate-600 text-xs">-</span>
                 <input type="date" value={toA} onChange={e=>setToA(e.target.value)} className={inp+" flex-1"}/>
               </div>
             </div>
@@ -716,7 +717,7 @@ const Comparison = ({ entries, eventTypes }) => {
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
               <div className="flex gap-2 items-center">
                 <input type="date" value={fromB} onChange={e=>setFromB(e.target.value)} className={inp+" flex-1"}/>
-                <span className="text-slate-600 text-xs">‚Äì</span>
+                <span className="text-slate-600 text-xs">-</span>
                 <input type="date" value={toB} onChange={e=>setToB(e.target.value)} className={inp+" flex-1"}/>
               </div>
             </div>
@@ -946,7 +947,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold grad">Eintr√§ge</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt ¬∑ {filtered.length} angezeigt</p>
+          <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt - {filtered.length} angezeigt</p>
         </div>
         <button onClick={onAdd}
           className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all">
@@ -970,9 +971,9 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
         <div className="flex gap-2 items-center flex-wrap">
           <span className="text-slate-600 text-xs">Zeitraum:</span>
           <input type="date" value={fromF} onChange={e=>setFromF(e.target.value)} className={inp+" text-xs py-1.5"}/>
-          <span className="text-slate-600 text-xs">‚Äì</span>
+          <span className="text-slate-600 text-xs">-</span>
           <input type="date" value={toF} onChange={e=>setToF(e.target.value)} className={inp+" text-xs py-1.5"}/>
-          {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">√ó Zur√ºcksetzen</button>}
+          {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">x Zur√ºcksetzen</button>}
         </div>
       </div>
 
