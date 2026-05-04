@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Ôªø<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -145,7 +145,7 @@ const calcTotals = ents => METRICS.reduce((acc,m) => ({ ...acc, [m.key]: ents.re
 const dPct = (a,b) => a===0 ? (b>0?100:0) : Math.round(((b-a)/a)*100);
 
 // ‚îÄ‚îÄ ChartCanvas ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-// Jede Instanz bekommt eine eigene Kopie der Options ‚Äî verhindert Chart.js-Mutation
+// Jede Instanz bekommt eine eigene Kopie der Options &mdash; verhindert Chart.js-Mutation
 const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
   const ref  = useRef(null);
   const inst = useRef(null);
@@ -156,7 +156,7 @@ const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
     if (!data?.labels?.length) return;
     inst.current = new Chart(ref.current.getContext('2d'), { type, data, options });
     return () => { if (inst.current) { inst.current.destroy(); inst.current = null; } };
-  }, [id]); // id enth√§lt alle relevanten Abh√§ngigkeiten
+  }, [id]); // id enth&auml;lt alle relevanten Abh&auml;ngigkeiten
 
   if (!data?.labels?.length)
     return <div style={{height:h}} className="flex items-center justify-center text-slate-600 text-sm">Keine Daten im Zeitraum</div>;
@@ -213,13 +213,13 @@ const exportExcel = (entries, eventTypes) => {
 
   const ws1rows = [
     [H('REVIVE Youth Stats','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764')],
-    [G(`Exportiert: ${fmtDe(today())}  |  Eintr√§ge gesamt: ${entries.length}`), G(''), G(''), G(''), G(''), G('')],
+    [G(`Exportiert: ${fmtDe(today())}  |  Eintr\u00e4ge gesamt: ${entries.length}`), G(''), G(''), G(''), G(''), G('')],
     [],
     [H('Metrik','5B21B6'), H('Gesamt','5B21B6'), H('Avg. pro Event','5B21B6'), H('Maximum','5B21B6'), H('Minimum','5B21B6'), H('Top-Event','5B21B6')],
     ...METRICS.map(m => {
       const vals = entries.map(e=>Number(e[m.key])||0);
       const maxIdx = vals.indexOf(Math.max(...vals));
-      const topEvt = entries[maxIdx]?.event || (entries[maxIdx] ? fmtDe(entries[maxIdx].date) : '‚Äî');
+      const topEvt = entries[maxIdx]?.event || (entries[maxIdx] ? fmtDe(entries[maxIdx].date) : '\u2014');
       return [B(m.label), N(tot[m.key]), NF(entries.length?tot[m.key]/entries.length:0),
         N(vals.length?Math.max(...vals):0), N(vals.length?Math.min(...vals):0), T(topEvt)];
     }),
@@ -298,7 +298,7 @@ const exportExcel = (entries, eventTypes) => {
   ws4['!cols'] = [10,8,12,14,16,10,13,15].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws4, 'Quartal');
 
-  // ‚îÄ‚îÄ Sheet 5: J√§hrlich ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Sheet 5: J&auml;hrlich ‚îÄ‚îÄ
   const yMap = {};
   entries.forEach(e=>{
     const k=e.date.slice(0,4);
@@ -320,7 +320,7 @@ const exportExcel = (entries, eventTypes) => {
   ];
   const ws5 = XLSX.utils.aoa_to_sheet(ws5rows);
   ws5['!cols'] = [8,8,12,14,16,10,18,20,20,16].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws5, 'J√§hrlich');
+  XLSX.utils.book_append_sheet(wb, ws5, 'J\u00e4hrlich');
 
   XLSX.writeFile(wb, `revive-stats-${today()}.xlsx`, {cellStyles:true});
 };
@@ -351,7 +351,7 @@ const Dashboard = ({ entries, eventTypes }) => {
   }, [entries, from, to, etF]);
 
   const totals  = useMemo(() => calcTotals(filtered), [filtered]);
-  const totKey  = METRICS.map(m=>totals[m.key]).join('-'); // f√ºr Chart-IDs
+  const totKey  = METRICS.map(m=>totals[m.key]).join('-'); // f&uuml;r Chart-IDs
   const activeM = METRICS.filter(m => active.includes(m.key));
 
   const labels = filtered.map(e => fmtShort(e.date) + (e.event ? ` - ${e.event.slice(0,10)}` : ''));
@@ -425,7 +425,7 @@ const Dashboard = ({ entries, eventTypes }) => {
     <div className="space-y-5 up">
       <div>
         <h1 className="text-xl font-bold grad">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr√§ge im Zeitraum - {entries.length} gesamt</p>
+        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr&auml;ge im Zeitraum - {entries.length} gesamt</p>
       </div>
 
       {/* Filter-Leiste */}
@@ -482,17 +482,17 @@ const Dashboard = ({ entries, eventTypes }) => {
             </div>
             <div className="text-3xl font-bold" style={{color:m.color}}>{totals[m.key]}</div>
             <div className="text-slate-600 text-xs mt-1">
-              {filtered.length ? `Avg. ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '‚Äî'}
+              {filtered.length ? `Avg. ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '\u2014'}
             </div>
           </div>
         ))}
       </div>
 
       {/* Hauptgrafik */}
-      <ChartCard title="Entwicklung √ºber Zeit"
+      <ChartCard title="Entwicklung \u00fcber Zeit"
         extra={
           <div className="flex gap-1">
-            {[['bar','Balken'],['line','Linie'],['area','Fl√§che']].map(([v,l])=>(
+            {[['bar','Balken'],['line','Linie'],['area','Fl\u00e4che']].map(([v,l])=>(
               <button key={v} onClick={e=>{e.stopPropagation();setView(v);}}
                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
                 {l}
@@ -551,7 +551,7 @@ const Dashboard = ({ entries, eventTypes }) => {
 
       {/* Tabelle */}
       {filtered.length>0 && (
-        <ChartCard title={`Letzte Eintr√§ge (${Math.min(15,filtered.length)} von ${filtered.length})`} defaultOpen={false}>
+        <ChartCard title={`Letzte Eintr\u00e4ge (${Math.min(15,filtered.length)} von ${filtered.length})`} defaultOpen={false}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -568,10 +568,10 @@ const Dashboard = ({ entries, eventTypes }) => {
                   return (
                     <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)', background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
                       <td className="px-4 py-1.5 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date, e.dateTo)}</td>
-                      <td className="px-4 py-1.5 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'‚Äî'}</td>
+                      <td className="px-4 py-1.5 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'\u2014'}</td>
                       <td className="px-3 py-1.5">
                         {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>
-                            : <span className="text-slate-700 text-xs">‚Äî</span>}
+                            : <span className="text-slate-700 text-xs">&mdash;</span>}
                       </td>
                       {METRICS.map(m=><td key={m.key} className="px-3 py-1.5 text-right font-semibold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
                     </tr>
@@ -639,7 +639,7 @@ const Comparison = ({ entries, eventTypes }) => {
 
   const Delta = ({a,b}) => {
     const d=b-a, p=dPct(a,b);
-    if (a===0&&b===0) return <span className="text-slate-700 text-xs">‚Äî</span>;
+    if (a===0&&b===0) return <span className="text-slate-700 text-xs">&mdash;</span>;
     const cls = d>0?'text-emerald-400':d<0?'text-red-400':'text-slate-500';
     return <span className={`text-xs font-semibold ${cls}`}>{d>0?'+':''}{d} ({d>0?'+':''}{p}%)</span>;
   };
@@ -648,7 +648,7 @@ const Comparison = ({ entries, eventTypes }) => {
     <div className="space-y-5 up">
       <div>
         <h1 className="text-xl font-bold grad">Zeitraum-Vergleich</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Zwei Zeitr√§ume direkt nebeneinander vergleichen</p>
+        <p className="text-slate-500 text-sm mt-0.5">Zwei Zeitr&auml;ume direkt nebeneinander vergleichen</p>
       </div>
 
       <div className="glass rounded-2xl p-5 space-y-4">
@@ -672,14 +672,14 @@ const Comparison = ({ entries, eventTypes }) => {
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum A</label>
               <select value={ymA} onChange={e=>setYmA(e.target.value)} className={inp+" w-full"}>
-                <option value="">‚Äî Monat w√§hlen ‚Äî</option>
+                <option value="">&mdash; Monat w&auml;hlen &mdash;</option>
                 {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Zeitraum B</label>
               <select value={ymB} onChange={e=>setYmB(e.target.value)} className={inp+" w-full"}>
-                <option value="">‚Äî Monat w√§hlen ‚Äî</option>
+                <option value="">&mdash; Monat w&auml;hlen &mdash;</option>
                 {availYM.map(ym=><option key={ym} value={ym}>{monthLabel(ym)}</option>)}
               </select>
             </div>
@@ -690,14 +690,14 @@ const Comparison = ({ entries, eventTypes }) => {
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Jahr A</label>
               <select value={yearA} onChange={e=>setYearA(e.target.value)} className={inp+" w-full"}>
-                <option value="">‚Äî Jahr w√§hlen ‚Äî</option>
+                <option value="">&mdash; Jahr w&auml;hlen &mdash;</option>
                 {availYears.map(y=><option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-slate-500 text-xs mb-1.5">Jahr B</label>
               <select value={yearB} onChange={e=>setYearB(e.target.value)} className={inp+" w-full"}>
-                <option value="">‚Äî Jahr w√§hlen ‚Äî</option>
+                <option value="">&mdash; Jahr w&auml;hlen &mdash;</option>
                 {availYears.map(y=><option key={y} value={y}>{y}</option>)}
               </select>
             </div>
@@ -749,7 +749,7 @@ const Comparison = ({ entries, eventTypes }) => {
                   </tr>
                 ))}
                 <tr style={{borderTop:'1px solid rgba(255,255,255,0.08)'}}>
-                  <td className="py-2 text-slate-500 text-xs">Eintr√§ge gesamt</td>
+                  <td className="py-2 text-slate-500 text-xs">Eintr&auml;ge gesamt</td>
                   <td className="py-2 text-right text-slate-400 font-medium">{rA.length}</td>
                   <td className="py-2 text-right text-slate-400 font-medium">{rB.length}</td>
                   <td className="py-2 text-right"><Delta a={rA.length} b={rB.length}/></td>
@@ -797,8 +797,8 @@ const Comparison = ({ entries, eventTypes }) => {
         </>
       ) : (
         <div className="glass rounded-2xl py-16 text-center">
-          <div className="text-slate-400 font-medium mb-1">Zeitr√§ume ausw√§hlen</div>
-          <div className="text-slate-600 text-sm">W√§hle oben zwei Zeitr√§ume zum Vergleichen aus</div>
+          <div className="text-slate-400 font-medium mb-1">Zeitr&auml;ume ausw&auml;hlen</div>
+          <div className="text-slate-600 text-sm">W&auml;hle oben zwei Zeitr&auml;ume zum Vergleichen aus</div>
         </div>
       )}
     </div>
@@ -836,7 +836,7 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
     <div className="up max-w-2xl">
       <div className="mb-5">
         <h1 className="text-xl font-bold grad">{initialData?'Eintrag bearbeiten':'Neuer Eintrag'}</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Zahlen f√ºr ein Event erfassen</p>
+        <p className="text-slate-500 text-sm mt-0.5">Zahlen f&uuml;r ein Event erfassen</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="glass rounded-2xl p-5 glow space-y-4">
@@ -864,7 +864,7 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
             <select value={form.eventTypeId} onChange={e=>set('eventTypeId',e.target.value)}
               className={inp}
               style={selectedType?{borderColor:selectedType.color+'60',color:selectedType.color}:{}}>
-              <option value="">‚Äî Kein Typ ‚Äî</option>
+              <option value="">&mdash; Kein Typ &mdash;</option>
               {eventTypes.map(t=>(
                 <option key={t.id} value={t.id}>{t.name}{t.isRange?' (Zeitraum)':''}</option>
               ))}
@@ -896,13 +896,13 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
         <div className="glass rounded-2xl p-5 glow">
           <label className="block text-slate-400 text-xs mb-1.5">Notizen</label>
           <textarea value={form.notes} onChange={e=>set('notes',e.target.value)}
-            placeholder="Thema, Gastredner, Besonderheiten ‚Ä¶" rows={3} className={inp+" resize-none"}/>
+            placeholder="Thema, Gastredner, Besonderheiten \u2026" rows={3} className={inp+" resize-none"}/>
         </div>
 
         <div className="flex gap-3">
           <button type="submit"
             className="flex-1 bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white font-semibold py-3 px-6 rounded-xl transition-all text-sm">
-            {initialData ? '√Ñnderungen speichern' : 'Eintrag hinzuf√ºgen'}
+            {initialData ? '\u00c4nderungen speichern' : 'Eintrag hinzuf\u00fcgen'}
           </button>
           {onCancel && (
             <button type="button" onClick={onCancel}
@@ -946,7 +946,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
     <div className="up space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold grad">Eintr√§ge</h1>
+          <h1 className="text-xl font-bold grad">Eintr&auml;ge</h1>
           <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt - {filtered.length} angezeigt</p>
         </div>
         <button onClick={onAdd}
@@ -958,14 +958,14 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
       <div className="glass rounded-2xl p-4 space-y-3">
         <div className="flex gap-2 flex-wrap">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Suchen ‚Ä¶" className={inp+" flex-1 min-w-[130px]"}/>
+            placeholder="Suchen \u2026" className={inp+" flex-1 min-w-[130px]"}/>
           <select value={etF} onChange={e=>setEtF(e.target.value)} className={inp}>
             <option value="all">Alle Typen</option>
             {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <button onClick={()=>setDesc(p=>!p)}
             className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-400 hover:bg-white/10 transition-all whitespace-nowrap">
-            {desc?'Neueste zuerst':'√Ñlteste zuerst'}
+            {desc?'Neueste zuerst':'\u00c4lteste zuerst'}
           </button>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
@@ -973,13 +973,13 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
           <input type="date" value={fromF} onChange={e=>setFromF(e.target.value)} className={inp+" text-xs py-1.5"}/>
           <span className="text-slate-600 text-xs">-</span>
           <input type="date" value={toF} onChange={e=>setToF(e.target.value)} className={inp+" text-xs py-1.5"}/>
-          {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">x Zur√ºcksetzen</button>}
+          {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">x Zur&uuml;cksetzen</button>}
         </div>
       </div>
 
       {filtered.length===0 ? (
         <div className="glass rounded-2xl py-16 text-center">
-          <div className="text-slate-400 font-medium mb-1">Keine Eintr√§ge gefunden</div>
+          <div className="text-slate-400 font-medium mb-1">Keine Eintr&auml;ge gefunden</div>
           {entries.length===0&&<button onClick={onAdd} className="mt-3 text-violet-400 hover:text-violet-300 text-sm">Ersten Eintrag erstellen</button>}
         </div>
       ) : (
@@ -1010,7 +1010,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                     {e.notes&&(
                       <button onClick={()=>setOpenNote(openNote===e.id?null:e.id)}
                         className="mt-1.5 text-slate-600 hover:text-slate-400 text-xs text-left transition-all">
-                        {openNote===e.id?e.notes:`${e.notes.slice(0,60)}${e.notes.length>60?'‚Ä¶':''}`}
+                        {openNote===e.id?e.notes:`${e.notes.slice(0,60)}${e.notes.length>60?'\u2026':''}`}
                       </button>
                     )}
                   </div>
@@ -1021,7 +1021,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                     </button>
                     <button onClick={()=>del(e.id)}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${confirm===e.id?'bg-red-900/40 text-red-400':'bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400'}`}
-                      title={confirm===e.id?'Nochmal klicken zum L√∂schen':'L√∂schen'}>
+                      title={confirm===e.id?'Nochmal klicken zum L\u00f6schen':'L\u00f6schen'}>
                       <SI p={confirm===e.id?IC.warn:IC.trash} size={13}/>
                     </button>
                   </div>
@@ -1059,7 +1059,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
   };
 
   const remove = id => {
-    if (uses(id)>0) { alert(`Dieser Typ wird in ${uses(id)} Eintr√§gen verwendet.\nBitte zuerst die betreffenden Eintr√§ge anpassen.`); return; }
+    if (uses(id)>0) { alert(`Dieser Typ wird in ${uses(id)} Eintr\u00e4gen verwendet.\nBitte zuerst die betreffenden Eintr\u00e4ge anpassen.`); return; }
     setEventTypes(p=>p.filter(t=>t.id!==id));
   };
 
@@ -1071,7 +1071,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
     <div className="up space-y-5 max-w-xl">
       <div>
         <h1 className="text-xl font-bold grad">Event-Typen</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Kategorien f√ºr Events verwalten</p>
+        <p className="text-slate-500 text-sm mt-0.5">Kategorien f&uuml;r Events verwalten</p>
       </div>
 
       <div className="glass rounded-2xl p-5 glow space-y-3">
@@ -1082,11 +1082,11 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3">
             <span className="dot" style={{width:14,height:14,background:color,borderRadius:3}}/>
             <input type="color" value={color} onChange={e=>setColor(e.target.value)}
-              className="w-6 h-6 cursor-pointer bg-transparent border-0" title="Farbe w√§hlen"/>
+              className="w-6 h-6 cursor-pointer bg-transparent border-0" title="Farbe w\u00e4hlen"/>
           </div>
           <button onClick={add}
             className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap">
-            Hinzuf√ºgen
+            Hinzuf&uuml;gen
           </button>
         </div>
         <label className="flex items-center gap-3 cursor-pointer">
@@ -1094,7 +1094,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
             className={`toggle ${isRange?'on':''}`}
             style={{background: isRange?'#f59e0b':'rgba(255,255,255,0.1)'}}/>
           <span className="text-slate-300 text-sm">Zeitraum-Event</span>
-          <span className="text-slate-500 text-xs">(z. B. Freizeit, Konferenz √ºber mehrere Tage)</span>
+          <span className="text-slate-500 text-xs">(z. B. Freizeit, Konferenz &uuml;ber mehrere Tage)</span>
         </label>
       </div>
 
@@ -1129,7 +1129,7 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
                     <span className="text-slate-200 text-sm font-medium">{t.name}</span>
                     {t.isRange&&<span className="pill" style={{background:'rgba(245,158,11,0.15)',color:'#f59e0b'}}>Zeitraum</span>}
                   </div>
-                  <span className="text-slate-600 text-xs">{uses(t.id)} Eintr√§ge</span>
+                  <span className="text-slate-600 text-xs">{uses(t.id)} Eintr&auml;ge</span>
                 </div>
                 <span className="pill" style={{background:t.color+'22',color:t.color}}>{t.name}</span>
                 <button onClick={()=>startEdit(t)}
@@ -1176,7 +1176,7 @@ const App = () => {
         if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',
           besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
       }
-      if (imp.length) { setEntries(p=>sorted([...p,...imp])); alert(`${imp.length} Eintr√§ge importiert.`); }
+      if (imp.length) { setEntries(p=>sorted([...p,...imp])); alert(`${imp.length} Eintr\u00e4ge importiert.`); }
     };
     r.readAsText(file); ev.target.value='';
   };
@@ -1185,7 +1185,7 @@ const App = () => {
     {id:'dashboard', label:'Dashboard',    icon:IC.chart  },
     {id:'compare',   label:'Vergleich',    icon:IC.compare},
     {id:'form',      label:'Neuer Eintrag',icon:IC.plus   },
-    {id:'entries',   label:'Eintr√§ge',     icon:IC.list   },
+    {id:'entries',   label:'Eintr\u00e4ge',     icon:IC.list   },
     {id:'types',     label:'Event-Typen',  icon:IC.tag    },
   ];
 
