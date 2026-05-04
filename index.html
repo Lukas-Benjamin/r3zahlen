@@ -1223,9 +1223,9 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
 // ‚îÄ‚îÄ Sync-Status-Anzeige ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const SyncDot = ({ state }) => {
   const MAP = {
-    connecting: ['#64748b', 'Verbinden‚Ä¶'],
+    connecting: ['#64748b', 'Verbinden\u2026'],
     synced:     ['#10b981', 'Synchronisiert'],
-    saving:     ['#f59e0b', 'Speichern‚Ä¶'],
+    saving:     ['#f59e0b', 'Speichern\u2026'],
     error:      ['#ef4444', 'Offline'],
   };
   const [col, label] = MAP[state] || MAP.connecting;
@@ -1383,7 +1383,7 @@ const App = () => {
         if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',
           besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
       }
-      if (imp.length) { const next=sortedArr([...entries,...imp]); setEntries(next); writeEntries(next); alert(imp.length+' Eintr√§ge importiert.'); }
+      if (imp.length) { const next=sortedArr([...entries,...imp]); setEntries(next); writeEntries(next); alert(imp.length+' Eintr\u00e4ge importiert.'); }
     };
     r.readAsText(file); ev.target.value='';
   };
@@ -1394,7 +1394,7 @@ const App = () => {
     {id:'dashboard', label:'Dashboard',    icon:IC.chart  },
     {id:'compare',   label:'Vergleich',    icon:IC.compare},
     ...(isAdmin ? [{id:'form', label:'Neuer Eintrag', icon:IC.plus}] : []),
-    {id:'entries',   label:'Eintr√§ge', icon:IC.list  },
+    {id:'entries',   label:'Eintr\u00e4ge', icon:IC.list  },
     ...(isAdmin ? [{id:'types', label:'Event-Typen', icon:IC.tag}] : []),
   ];
 
