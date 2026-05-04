@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Revive Youth Stats</title>
+  <title>Kirchen Stats</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -24,6 +24,13 @@
       appId:             "1:1071865171603:web:399ef56359d043e7544766"
     });
     const db = firebase.firestore();
+    // Migration: alte Schl√ºssel -> neue Schl√ºssel (einmalig)
+    if (!localStorage.getItem('church-entries-revive') && localStorage.getItem('revive-entries'))
+      localStorage.setItem('church-entries-revive', localStorage.getItem('revive-entries'));
+    if (!localStorage.getItem('church-etypes-revive') && localStorage.getItem('revive-etypes'))
+      localStorage.setItem('church-etypes-revive', localStorage.getItem('revive-etypes'));
+    if (!localStorage.getItem('church-role') && localStorage.getItem('revive-role'))
+      localStorage.setItem('church-role', localStorage.getItem('revive-role'));
   </script>
   <style>
     * { box-sizing: border-box; }
@@ -51,9 +58,8 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const { useState, useEffect, useRef, useMemo } = React;
 
-// Chart.js Standardschrift auf Inter setzen (verhindert Symbol-Probleme in Canvas)
 Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
 Chart.defaults.font.size   = 12;
 
@@ -80,6 +86,7 @@ const IC = {
   calendar: ["M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"],
   chevDown: "M6 9l6 6 6-6",
   chevUp:   "M18 15l-6-6-6 6",
+  logout:   "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
 };
 
 // ‚îÄ‚îÄ Konstanten ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
@@ -99,8 +106,14 @@ const DEFAULT_TYPES = [
   { id: 'kleingruppe',  name: 'Kleingruppe',         color: '#06b6d4', isRange: false },
 ];
 
-// ‚îÄ‚îÄ Chart-Konfiguration (Funktion, um Mutation zu verhindern) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const FONT = { family: "'Inter', system-ui, sans-serif" };
+const PROFILES = [
+  { id: 'wunstorf',   label: 'Wunstorf',   color: '#06b6d4', grad: 'linear-gradient(135deg,#0891b2,#3b82f6)' },
+  { id: 'schaumburg', label: 'Schaumburg',  color: '#10b981', grad: 'linear-gradient(135deg,#059669,#06b6d4)' },
+  { id: 'revive',     label: 'Revive',      color: '#8b5cf6', grad: 'linear-gradient(135deg,#8b5cf6,#ec4899)' },
+];
+
+// ‚îÄ‚îÄ Chart-Konfiguration ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const FONT    = { family: "'Inter', system-ui, sans-serif" };
 const TOOLTIP = {
   backgroundColor: 'rgba(10,10,20,0.97)', titleColor: '#f1f5f9',
   bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
@@ -108,34 +121,27 @@ const TOOLTIP = {
 };
 const fmtTick = v => v >= 10000 ? (v/1000).toFixed(0)+'k' : v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v;
 
-// mkCfg: beginAtZero=true fuer Balken, false fuer Linien (auto-skaliert auf Datenwerte)
 const mkCfg = (extra = {}) => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: { duration: 350 },
+  responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
   plugins: {
     legend: { labels: { color: '#94a3b8', padding: 12, usePointStyle: true, font: { ...FONT, size: 11 } } },
     tooltip: TOOLTIP,
     ...((extra.plugins) || {}),
   },
   scales: {
-    x: {
-      ticks: { color: '#475569', maxRotation: 35, font: { ...FONT, size: 10 } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
-    },
+    x: { ticks: { color: '#475569', maxRotation: 35, font: { ...FONT, size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
     y: {
-      ticks: { color: '#475569', precision: 0, maxTicksLimit: 5, font: { ...FONT, size: 10 }, callback: fmtTick },
+      ticks: { color: '#475569', precision: 0, maxTicksLimit: extra.maxTicks||5, font: { ...FONT, size: 10 }, callback: fmtTick },
       grid: { color: 'rgba(255,255,255,0.04)' },
-      beginAtZero: extra.beginAtZero !== false,  // default true; set false fuer Linien
+      beginAtZero: extra.beginAtZero !== false,
+      ...(extra.suggestedMax !== undefined ? { suggestedMax: extra.suggestedMax } : {}),
     },
     ...((extra.scales) || {}),
   },
 });
 
 const mkCfgNoScale = () => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: { duration: 400 },
+  responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
   plugins: {
     legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 10, usePointStyle: true, font: { ...FONT, size: 11 } } },
     tooltip: TOOLTIP,
@@ -143,35 +149,30 @@ const mkCfgNoScale = () => ({
 });
 
 // ‚îÄ‚îÄ Hilfsfunktionen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const genId  = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-const today  = () => new Date().toISOString().split('T')[0];
-const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString().split('T')[0];
-const fmtDe  = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return `${dd}.${m}.${y}`; };
+const genId    = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const today    = () => new Date().toISOString().split('T')[0];
+const daysAgo  = n => new Date(Date.now() - n * 864e5).toISOString().split('T')[0];
+const fmtDe    = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return `${dd}.${m}.${y}`; };
 const fmtShort = d => { if (!d) return ''; const [,m,dd] = d.split('-'); return `${dd}.${m}`; };
-const fmtRange = (d, t) => t && t !== d ? `${fmtDe(d)} - ${fmtDe(t)}` : fmtDe(d);
-const monthLabel = ym => {
-  const [y, m] = ym.split('-');
-  return new Date(y, m - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-};
+const fmtRange = (d, t) => t && t !== d ? `${fmtDe(d)} ‚Äì ${fmtDe(t)}` : fmtDe(d);
+const monthLabel = ym => { const [y,m] = ym.split('-'); return new Date(y, m-1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }); };
 const firstOfMonth = ym => `${ym}-01`;
 const lastOfMonth  = ym => { const [y,m] = ym.split('-').map(Number); return new Date(y,m,0).toISOString().split('T')[0]; };
-const calcTotals = ents => METRICS.reduce((acc,m) => ({ ...acc, [m.key]: ents.reduce((s,e) => s+(Number(e[m.key])||0),0) }), {});
-const dPct = (a,b) => a===0 ? (b>0?100:0) : Math.round(((b-a)/a)*100);
+const calcTotals = ents => METRICS.reduce((acc,m) => ({ ...acc, [m.key]: ents.reduce((s,e) => s+(Number(e[m.key])||0), 0) }), {});
+const sortedArr  = arr => [...arr].sort((a,b) => a.date.localeCompare(b.date));
+const loadJSON   = (key, fallback) => { try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; } catch { return fallback; } };
 
 // ‚îÄ‚îÄ ChartCanvas ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-// Jede Instanz bekommt eine eigene Kopie der Options &mdash; verhindert Chart.js-Mutation
 const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
   const ref  = useRef(null);
   const inst = useRef(null);
-
   useEffect(() => {
     if (!ref.current) return;
     if (inst.current) { inst.current.destroy(); inst.current = null; }
     if (!data?.labels?.length) return;
     inst.current = new Chart(ref.current.getContext('2d'), { type, data, options });
     return () => { if (inst.current) { inst.current.destroy(); inst.current = null; } };
-  }, [id]); // id enth&auml;lt alle relevanten Abh&auml;ngigkeiten
-
+  }, [id]);
   if (!data?.labels?.length)
     return <div style={{height:h}} className="flex items-center justify-center text-slate-600 text-sm">Keine Daten im Zeitraum</div>;
   return <canvas ref={ref} style={{ height: h, display: 'block' }} />;
@@ -187,7 +188,7 @@ const ChartCard = ({ title, children, extra, defaultOpen=true, className='' }) =
         <h3 className="font-semibold text-slate-200 text-sm">{title}</h3>
         <div className="flex items-center gap-2">
           {extra}
-          <span className="text-slate-500 transition-transform" style={{transform:open?'rotate(0deg)':'rotate(-90deg)',display:'inline-flex',transition:'transform .2s'}}>
+          <span className="text-slate-500" style={{display:'inline-flex',transform:open?'rotate(0)':'rotate(-90deg)',transition:'transform .2s'}}>
             <SI p={IC.chevDown} size={13}/>
           </span>
         </div>
@@ -197,62 +198,104 @@ const ChartCard = ({ title, children, extra, defaultOpen=true, className='' }) =
   );
 };
 
-// ‚îÄ‚îÄ Excel-Export ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const exportExcel = (entries, eventTypes) => {
-  const wb = XLSX.utils.book_new();
-  const etMap = Object.fromEntries(eventTypes.map(t => [t.id, t.name]));
-  const tot   = calcTotals(entries);
+// ‚îÄ‚îÄ Excel-Export (verbessert) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const exportExcel = (entries, eventTypes, profileId) => {
+  const prof   = PROFILES.find(p => p.id === profileId) || PROFILES[2];
+  const wb     = XLSX.utils.book_new();
+  const etMap  = Object.fromEntries(eventTypes.map(t => [t.id, t.name]));
+  const tot    = calcTotals(entries);
+  const sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date));
 
   // Stil-Helfer
-  const HS = (rgb='3B0764') => ({ font:{bold:true,color:{rgb:'FFFFFF'},sz:11}, fill:{patternType:'solid',fgColor:{rgb}}, alignment:{horizontal:'center',vertical:'center'} });
-  const BS = { font:{bold:true}, alignment:{horizontal:'left'} };
-  const NS = (align='right') => ({ alignment:{horizontal:align} });
-  const GS = { font:{color:{rgb:'64748B'},sz:10}, alignment:{horizontal:'left'} };
-  const H  = (v,rgb='4C1D95') => ({v, t:'s', s:HS(rgb)});
-  const B  = v => ({v, t:'s', s:BS});
-  const N  = (v,fmt='0') => ({v:Number(v)||0, t:'n', z:fmt, s:NS()});
-  const NF = v => ({v:Number(v)||0, t:'n', z:'0.0', s:NS()});
-  const G  = v => ({v, t:'s', s:GS});
-  const T  = v => ({v, t:'s'});
+  const HS  = (rgb='3B0764') => ({ font:{bold:true,color:{rgb:'FFFFFF'},sz:11}, fill:{patternType:'solid',fgColor:{rgb}}, alignment:{horizontal:'center',vertical:'center'} });
+  const HSL = (rgb='3B0764') => ({ font:{bold:true,color:{rgb:'FFFFFF'},sz:11}, fill:{patternType:'solid',fgColor:{rgb}}, alignment:{horizontal:'left',vertical:'center'} });
+  const BS  = { font:{bold:true}, alignment:{horizontal:'left'} };
+  const GS  = { font:{color:{rgb:'64748B'},sz:10}, alignment:{horizontal:'left'} };
+  const RS  = (red) => ({ font:{bold:true,color:{rgb:red?'DC2626':'059669'}}, alignment:{horizontal:'right'} });
+  const H   = (v, rgb='4C1D95') => ({v, t:'s', s:HS(rgb)});
+  const HL  = (v, rgb='4C1D95') => ({v, t:'s', s:HSL(rgb)});
+  const B   = v => ({v, t:'s', s:BS});
+  const N   = (v, fmt='0') => ({v:Number(v)||0, t:'n', z:fmt, s:{alignment:{horizontal:'right'}}});
+  const NF  = v => ({v:Number(v)||0, t:'n', z:'0.0', s:{alignment:{horizontal:'right'}}});
+  const NP  = (v, isNeg) => ({v:Number(v)||0, t:'n', z:'+0.0%;-0.0%;0%', s: isNeg===undefined ? {alignment:{horizontal:'right'}} : RS(isNeg)});
+  const G   = v => ({v, t:'s', s:GS});
+  const T   = v => ({v: v||'', t:'s'});
+  const E   = () => ({v:'', t:'s'});
 
-  // ‚îÄ‚îÄ Sheet 1: Zusammenfassung ‚îÄ‚îÄ
-  const etSection = [...eventTypes, {id:'',name:'(kein Typ)'}]
-    .map(et => {
-      const sub = entries.filter(e=>(e.eventTypeId||'')===et.id);
-      if (!sub.length && et.id) return null;
-      const subTot = calcTotals(sub);
-      return [B(et.name), N(sub.length), ...METRICS.map(m=>N(subTot[m.key])),
-        NF(sub.length ? subTot.besucher/sub.length : 0)];
-    }).filter(Boolean);
+  const mColors = { besucher:'3730A3', erstbesucher:'831843', entscheidungen:'78350F', taufen:'064E3B' };
+
+  // ‚îÄ‚îÄ Sheet 1: √úbersicht ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+  const firstDate = entries.length ? sorted[sorted.length-1].date : '';
+  const lastDate  = entries.length ? sorted[0].date : '';
+  const zeitraum  = entries.length ? `${fmtDe(firstDate)} ‚Äì ${fmtDe(lastDate)}` : '‚Äî';
+
+  const metRows = METRICS.map(m => {
+    const vals    = entries.map(e => Number(e[m.key])||0);
+    const maxIdx  = vals.length ? vals.indexOf(Math.max(...vals)) : -1;
+    const topEvt  = maxIdx >= 0 ? (entries.find(e=>e===sorted[sorted.length-1-maxIdx])?.event || fmtDe(sorted[sorted.length-1-maxIdx]?.date) || '‚Äî') : '‚Äî';
+    const nonZero = vals.filter(v => v > 0);
+    // topEvt from original unsorted
+    const origMax = entries.reduce((best,e) => (Number(e[m.key])||0) > (Number(best[m.key])||0) ? e : best, entries[0] || {});
+    return [
+      HL(m.label, mColors[m.key]),
+      N(tot[m.key]),
+      NF(entries.length ? tot[m.key]/entries.length : 0),
+      N(nonZero.length ? Math.max(...nonZero) : 0),
+      N(nonZero.length ? Math.min(...nonZero) : 0),
+      T(origMax ? (origMax.event || fmtDe(origMax.date)) : '‚Äî'),
+    ];
+  });
+
+  // Jahres-Wachstum
+  const years = [...new Set(entries.map(e=>e.date.slice(0,4)))].sort();
+  const growthSection = [];
+  if (years.length >= 2) {
+    growthSection.push([]);
+    growthSection.push([H('Jahres-Wachstum','1E3A5F'),H('','1E3A5F'),H('','1E3A5F'),H('','1E3A5F'),H('','1E3A5F'),H('','1E3A5F')]);
+    const hdr = [B('Metrik')];
+    years.forEach((y,i) => { hdr.push(B(y)); if(i>0) hdr.push(B('√Ñnderung')); });
+    growthSection.push(hdr.slice(0,6));
+    METRICS.forEach(m => {
+      const row = [T(m.label)];
+      years.forEach((y,i) => {
+        const cur  = entries.filter(e=>e.date.startsWith(y)).reduce((s,e)=>s+(Number(e[m.key])||0),0);
+        const prev = i>0 ? entries.filter(e=>e.date.startsWith(years[i-1])).reduce((s,e)=>s+(Number(e[m.key])||0),0) : null;
+        row.push(N(cur));
+        if (i>0) {
+          const pct = prev>0 ? (cur-prev)/prev : 0;
+          row.push(NP(pct, pct<0));
+        }
+      });
+      growthSection.push(row.slice(0,6));
+    });
+  }
+
+  // Nach Event-Typ
+  const etSection = [...eventTypes, {id:'',name:'(kein Typ)'}].map(et => {
+    const sub    = entries.filter(e=>(e.eventTypeId||'')===et.id);
+    if (!sub.length && et.id) return null;
+    const subTot = calcTotals(sub);
+    return [T(et.name), N(sub.length), ...METRICS.map(m=>N(subTot[m.key])), NF(sub.length?subTot.besucher/sub.length:0)];
+  }).filter(Boolean);
 
   const ws1rows = [
-    [H('REVIVE Youth Stats','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764'), H('','3B0764')],
-    [G(`Exportiert: ${fmtDe(today())}  |  Eintr\u00e4ge gesamt: ${entries.length}`), G(''), G(''), G(''), G(''), G('')],
+    [H(`${prof.label.toUpperCase()} ‚Äî Statistiken`,'3B0764'),H('','3B0764'),H('','3B0764'),H('','3B0764'),H('','3B0764'),H('','3B0764')],
+    [G(`Exportiert: ${fmtDe(today())}  |  Eintr√§ge: ${entries.length}  |  Zeitraum: ${zeitraum}`),G(''),G(''),G(''),G(''),G('')],
     [],
-    [H('Metrik','5B21B6'), H('Gesamt','5B21B6'), H('Avg. pro Event','5B21B6'), H('Maximum','5B21B6'), H('Minimum','5B21B6'), H('Top-Event','5B21B6')],
-    ...METRICS.map(m => {
-      const vals = entries.map(e=>Number(e[m.key])||0);
-      const maxIdx = vals.indexOf(Math.max(...vals));
-      const topEvt = entries[maxIdx]?.event || (entries[maxIdx] ? fmtDe(entries[maxIdx].date) : '\u2014');
-      return [B(m.label), N(tot[m.key]), NF(entries.length?tot[m.key]/entries.length:0),
-        N(vals.length?Math.max(...vals):0), N(vals.length?Math.min(...vals):0), T(topEvt)];
-    }),
+    [H('Metrik'),H('Gesamt'),H('Avg./Event'),H('Maximum'),H('Min. (>0)'),H('Top-Event')],
+    ...metRows,
     [],
-    [H('Nach Event-Typ','5B21B6'), H('Events','5B21B6'), H('Besucher','5B21B6'),
-     H('Erstbesucher','5B21B6'), H('Entscheidungen','5B21B6'), H('Taufen','5B21B6'), H('Avg. Besucher','5B21B6')],
+    [H('Nach Event-Typ'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Avg. Besucher')],
     ...etSection,
+    ...growthSection,
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(ws1rows);
-  ws1['!cols'] = [26,12,16,12,12,24].map(w=>({wch:w}));
-  ws1['!merges'] = [
-    {s:{r:0,c:0},e:{r:0,c:5}},
-    {s:{r:1,c:0},e:{r:1,c:5}},
-  ];
-  ws1['!rows'] = [{hpt:22},{hpt:16}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Zusammenfassung');
+  ws1['!cols'] = [28,12,13,12,12,30].map(w=>({wch:w}));
+  ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
+  ws1['!rows']   = [{hpt:26},{hpt:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, '√úbersicht');
 
-  // ‚îÄ‚îÄ Sheet 2: Alle Daten ‚îÄ‚îÄ
-  const sorted = [...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  // ‚îÄ‚îÄ Sheet 2: Alle Events ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   const ws2rows = [
     [H('Datum'),H('Datum bis'),H('Event'),H('Event-Typ'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Notizen')],
     ...sorted.map(e=>[
@@ -261,23 +304,26 @@ const exportExcel = (entries, eventTypes) => {
       N(e.besucher), N(e.erstbesucher), N(e.entscheidungen), N(e.taufen),
       T(e.notes||''),
     ]),
+    [],
+    [B('GESAMT'),E(),E(),E(),...METRICS.map(m=>N(tot[m.key])),E()],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(ws2rows);
-  ws2['!cols'] = [12,12,32,22,12,14,16,10,50].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws2, 'Alle Daten');
+  ws2['!cols'] = [12,12,36,24,12,14,16,10,52].map(w=>({wch:w}));
+  ws2['!autofilter'] = {ref:'A1:I1'};
+  XLSX.utils.book_append_sheet(wb, ws2, 'Alle Events');
 
-  // ‚îÄ‚îÄ Sheet 3: Monatlich ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Sheet 3: Monatlich ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   const mMap = {};
   entries.forEach(e=>{
-    const k=e.date.slice(0,7);
-    if(!mMap[k]) mMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
-    METRICS.forEach(m=>mMap[k][m.key]+=Number(e[m.key])||0);
+    const k = e.date.slice(0,7);
+    if (!mMap[k]) mMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m => mMap[k][m.key] += Number(e[m.key])||0);
     mMap[k].count++;
   });
   const months = Object.entries(mMap).sort();
   const ws3rows = [
     [H('Monat'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
-     H('Avg. Besucher'),H('Avg. Erstbesucher'),H('Avg. Entscheidungen'),H('Avg. Taufen')],
+     H('Avg. Besucher'),H('Avg. Erstbsuch.'),H('Avg. Entsch.'),H('Avg. Taufen')],
     ...months.map(([k,v])=>[
       B(monthLabel(k)), N(v.count),
       N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
@@ -285,68 +331,104 @@ const exportExcel = (entries, eventTypes) => {
       NF(v.entscheidungen/v.count), NF(v.taufen/v.count),
     ]),
     [],
-    [B('GESAMT'), N(entries.length), ...METRICS.map(m=>N(tot[m.key])), NF(months.length?months.reduce((s,[,v])=>s+v.besucher,0)/months.length:0)],
+    [B('GESAMT'),N(entries.length),...METRICS.map(m=>N(tot[m.key])),
+     NF(entries.length?tot.besucher/entries.length:0),
+     NF(entries.length?tot.erstbesucher/entries.length:0),
+     NF(entries.length?tot.entscheidungen/entries.length:0),
+     NF(entries.length?tot.taufen/entries.length:0)],
   ];
   const ws3 = XLSX.utils.aoa_to_sheet(ws3rows);
-  ws3['!cols'] = [22,8,12,14,16,10,13,15,18,12].map(w=>({wch:w}));
+  ws3['!cols'] = [24,8,12,14,16,10,14,15,14,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws3, 'Monatlich');
 
-  // ‚îÄ‚îÄ Sheet 4: Quartal ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Sheet 4: Quartale ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   const qMap = {};
   entries.forEach(e=>{
     const yr=e.date.slice(0,4), mo=parseInt(e.date.slice(5,7)), q=Math.ceil(mo/3);
     const k=`${yr}-Q${q}`;
-    if(!qMap[k]) qMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
-    METRICS.forEach(m=>qMap[k][m.key]+=Number(e[m.key])||0);
+    if (!qMap[k]) qMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m => qMap[k][m.key] += Number(e[m.key])||0);
     qMap[k].count++;
   });
   const ws4rows = [
-    [H('Quartal'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Avg. Besucher'),H('Avg. Erstbesucher')],
+    [H('Quartal'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),H('Avg. Besucher'),H('Avg. Erstbsuch.')],
     ...Object.entries(qMap).sort().map(([k,v])=>[
       B(k), N(v.count),
       N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
       NF(v.besucher/v.count), NF(v.erstbesucher/v.count),
     ]),
+    [],
+    [B('GESAMT'),N(entries.length),...METRICS.map(m=>N(tot[m.key]))],
   ];
   const ws4 = XLSX.utils.aoa_to_sheet(ws4rows);
-  ws4['!cols'] = [10,8,12,14,16,10,13,15].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws4, 'Quartal');
+  ws4['!cols'] = [10,8,12,14,16,10,14,15].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws4, 'Quartale');
 
-  // ‚îÄ‚îÄ Sheet 5: J&auml;hrlich ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Sheet 5: J√§hrlich (mit % Wachstum) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   const yMap = {};
   entries.forEach(e=>{
-    const k=e.date.slice(0,4);
-    if(!yMap[k]) yMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
-    METRICS.forEach(m=>yMap[k][m.key]+=Number(e[m.key])||0);
+    const k = e.date.slice(0,4);
+    if (!yMap[k]) yMap[k]={count:0,besucher:0,erstbesucher:0,entscheidungen:0,taufen:0};
+    METRICS.forEach(m => yMap[k][m.key] += Number(e[m.key])||0);
     yMap[k].count++;
   });
+  const yearEntries = Object.entries(yMap).sort();
   const ws5rows = [
-    [H('Jahr'),H('Events'),H('Besucher'),H('Erstbesucher'),H('Entscheidungen'),H('Taufen'),
-     H('Avg. Besucher/Event'),H('Avg. Erstbesucher/Event'),H('Avg. Entscheidungen/Event'),H('Avg. Taufen/Event')],
-    ...Object.entries(yMap).sort().map(([k,v])=>[
-      B(k), N(v.count),
-      N(v.besucher), N(v.erstbesucher), N(v.entscheidungen), N(v.taufen),
-      NF(v.besucher/v.count), NF(v.erstbesucher/v.count),
-      NF(v.entscheidungen/v.count), NF(v.taufen/v.count),
-    ]),
+    [H('Jahr'),H('Events'),H('Besucher'),H('+/-%'),H('Erstbesucher'),H('+/-%'),H('Entscheidungen'),H('+/-%'),H('Taufen'),H('+/-%')],
+    ...yearEntries.map(([k,v],i) => {
+      const prev    = i > 0 ? yearEntries[i-1][1] : null;
+      const pctCell = key => {
+        if (!prev) return T('‚Äî');
+        const pct = prev[key]>0 ? (v[key]-prev[key])/prev[key] : 0;
+        return NP(pct, pct<0);
+      };
+      return [B(k), N(v.count), N(v.besucher), pctCell('besucher'), N(v.erstbesucher), pctCell('erstbesucher'), N(v.entscheidungen), pctCell('entscheidungen'), N(v.taufen), pctCell('taufen')];
+    }),
     [],
-    [B('GESAMT'), N(entries.length), ...METRICS.map(m=>N(tot[m.key]))],
+    [B('GESAMT'),N(entries.length),...METRICS.map(m=>[N(tot[m.key]),E()]).flat()],
   ];
   const ws5 = XLSX.utils.aoa_to_sheet(ws5rows);
-  ws5['!cols'] = [8,8,12,14,16,10,18,20,20,16].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws5, 'J\u00e4hrlich');
+  ws5['!cols'] = [8,8,12,9,14,9,16,9,10,9].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws5, 'J√§hrlich');
 
-  XLSX.writeFile(wb, `revive-stats-${today()}.xlsx`, {cellStyles:true});
+  // ‚îÄ‚îÄ Sheet 6: Event-Typen Detail ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+  const ws6rows = [
+    [H('Event-Typ'),H('Anzahl'),H('Besucher'),H('Avg. Besucher'),H('Erstbesucher'),H('Avg. Erstbsuch.'),H('Entscheidungen'),H('Avg. Entsch.'),H('Taufen'),H('Avg. Taufen')],
+  ];
+  [...eventTypes, {id:'',name:'(kein Typ)'}].forEach(et => {
+    const sub = entries.filter(e=>(e.eventTypeId||'')===et.id);
+    if (!sub.length && et.id) return;
+    const subTot = calcTotals(sub);
+    ws6rows.push([
+      B(et.name), N(sub.length),
+      N(subTot.besucher), NF(sub.length?subTot.besucher/sub.length:0),
+      N(subTot.erstbesucher), NF(sub.length?subTot.erstbesucher/sub.length:0),
+      N(subTot.entscheidungen), NF(sub.length?subTot.entscheidungen/sub.length:0),
+      N(subTot.taufen), NF(sub.length?subTot.taufen/sub.length:0),
+    ]);
+    [...sub].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e => {
+      ws6rows.push([
+        G(`  ${fmtDe(e.date)}${e.event?' ‚Äì '+e.event:''}`), E(),
+        N(e.besucher), E(), N(e.erstbesucher), E(), N(e.entscheidungen), E(), N(e.taufen), E(),
+      ]);
+    });
+    ws6rows.push([]);
+  });
+  const ws6 = XLSX.utils.aoa_to_sheet(ws6rows);
+  ws6['!cols'] = [32,10,12,14,14,16,16,14,10,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws6, 'Event-Typen');
+
+  XLSX.writeFile(wb, `${prof.id}-stats-${today()}.xlsx`, {cellStyles:true});
 };
 
 // ‚îÄ‚îÄ Dashboard ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const Dashboard = ({ entries, eventTypes }) => {
-  const [from,    setFrom]    = useState(daysAgo(90));
-  const [to,      setTo]      = useState(today());
-  const [preset,  setPreset]  = useState('90d');
-  const [active,  setActive]  = useState(METRICS.map(m => m.key));
-  const [view,    setView]    = useState('bar');
-  const [etF,     setEtF]     = useState('all');
+  const [from,   setFrom]   = useState(daysAgo(90));
+  const [to,     setTo]     = useState(today());
+  const [preset, setPreset] = useState('90d');
+  const [active, setActive] = useState(METRICS.map(m => m.key));
+  const [view,   setView]   = useState('bar');
+  const [etF,    setEtF]    = useState('all');
 
   const applyPreset = p => {
     setPreset(p);
@@ -365,10 +447,9 @@ const Dashboard = ({ entries, eventTypes }) => {
   }, [entries, from, to, etF]);
 
   const totals  = useMemo(() => calcTotals(filtered), [filtered]);
-  const totKey  = METRICS.map(m=>totals[m.key]).join('-'); // f&uuml;r Chart-IDs
+  const totKey  = METRICS.map(m=>totals[m.key]).join('-');
   const activeM = METRICS.filter(m => active.includes(m.key));
-
-  const labels = filtered.map(e => fmtShort(e.date) + (e.event ? ` - ${e.event.slice(0,10)}` : ''));
+  const labels  = filtered.map(e => fmtShort(e.date) + (e.event ? ` ‚Äì ${e.event.slice(0,10)}` : ''));
 
   const makeLineData = (fill=false) => ({
     labels,
@@ -378,7 +459,6 @@ const Dashboard = ({ entries, eventTypes }) => {
       fill, tension: 0.4, pointRadius: 4, pointHoverRadius: 6,
     })),
   });
-
   const barData = {
     labels,
     datasets: activeM.map(m => ({
@@ -386,79 +466,51 @@ const Dashboard = ({ entries, eventTypes }) => {
       backgroundColor: m.color+'bb', borderRadius: 4,
     })),
   };
-
   const cumulData = {
     labels,
     datasets: activeM.map(m => {
       let c = 0;
-      return {
-        label: m.label,
-        data: filtered.map(e=>{ c += Number(e[m.key])||0; return c; }),
-        borderColor: m.color, backgroundColor: m.color+'18',
-        fill: true, tension: 0.4, pointRadius: 3,
-      };
+      return { label: m.label, data: filtered.map(e=>{ c+=Number(e[m.key])||0; return c; }), borderColor: m.color, backgroundColor: m.color+'18', fill: true, tension: 0.4, pointRadius: 3 };
     }),
   };
-
   const donutData = (() => {
     const vals = METRICS.map(m=>totals[m.key]);
     if (!vals.some(v=>v>0)) return null;
-    return {
-      labels: METRICS.map(m=>m.label),
-      datasets: [{ data: vals, backgroundColor: METRICS.map(m=>m.color+'bb'), borderColor: METRICS.map(m=>m.color), borderWidth: 2, hoverOffset: 6 }],
-    };
+    return { labels: METRICS.map(m=>m.label), datasets: [{ data: vals, backgroundColor: METRICS.map(m=>m.color+'bb'), borderColor: METRICS.map(m=>m.color), borderWidth: 2, hoverOffset: 6 }] };
   })();
-
   const etData = (() => {
     const types = eventTypes.filter(et => filtered.some(e=>e.eventTypeId===et.id));
     if (!types.length) return null;
-    return {
-      labels: types.map(t=>t.name),
-      datasets: activeM.map(m => ({
-        label: m.label,
-        data: types.map(t=>filtered.filter(e=>e.eventTypeId===t.id).reduce((s,e)=>s+(Number(e[m.key])||0),0)),
-        backgroundColor: m.color+'bb', borderRadius: 4,
-      })),
-    };
+    return { labels: types.map(t=>t.name), datasets: activeM.map(m => ({ label: m.label, data: types.map(t=>filtered.filter(e=>e.eventTypeId===t.id).reduce((s,e)=>s+(Number(e[m.key])||0),0)), backgroundColor: m.color+'bb', borderRadius: 4 })) };
   })();
 
   const mainData = view==='bar' ? barData : view==='area' ? makeLineData(true) : makeLineData(false);
   const mainType = view==='bar' ? 'bar' : 'line';
   const mainId   = `main-${view}-${from}-${to}-${active.join()}-${etF}-${totKey}`;
-
-  const toggle = k => setActive(p => p.includes(k) ? p.filter(x=>x!==k) : [...p,k]);
-
-  const PreBtn = ({p,l}) => (
+  const toggle   = k => setActive(p => p.includes(k) ? p.filter(x=>x!==k) : [...p,k]);
+  const PreBtn   = ({p,l}) => (
     <button onClick={()=>applyPreset(p)}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${preset===p?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-      {l}
-    </button>
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${preset===p?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>{l}</button>
   );
 
   return (
     <div className="space-y-5 up">
       <div>
         <h1 className="text-xl font-bold grad">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr&auml;ge im Zeitraum - {entries.length} gesamt</p>
+        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr&auml;ge im Zeitraum &mdash; {entries.length} gesamt</p>
       </div>
 
-      {/* Filter-Leiste */}
       <div className="glass rounded-2xl p-4 space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
-          <PreBtn p="30d" l="30 Tage"/>
-          <PreBtn p="90d" l="90 Tage"/>
-          <PreBtn p="year" l="Dieses Jahr"/>
-          <PreBtn p="all" l="Alle"/>
+          <PreBtn p="30d" l="30 Tage"/><PreBtn p="90d" l="90 Tage"/><PreBtn p="year" l="Dieses Jahr"/><PreBtn p="all" l="Alle"/>
           <div className="flex gap-2 ml-auto flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="text-slate-500 text-xs">Von</span>
-              <input type="date" value={from} onChange={e=>{setFrom(e.target.value);setPreset('');}}
-                className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 w-36"/>
+              <input type="date" value={from} onChange={e=>{setFrom(e.target.value);setPreset('');}} className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 w-36"/>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-slate-500 text-xs">Bis</span>
-              <input type="date" value={to} onChange={e=>{setTo(e.target.value);setPreset('');}}
-                className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 w-36"/>
+              <input type="date" value={to} onChange={e=>{setTo(e.target.value);setPreset('');}} className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 w-36"/>
             </div>
           </div>
         </div>
@@ -467,18 +519,12 @@ const Dashboard = ({ entries, eventTypes }) => {
           {METRICS.map(m=>(
             <button key={m.key} onClick={()=>toggle(m.key)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: active.includes(m.key) ? m.color+'20' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${active.includes(m.key) ? m.color+'60' : 'transparent'}`,
-                color: active.includes(m.key) ? m.color : '#475569',
-              }}>
-              <span className="dot" style={{background: active.includes(m.key)?m.color:'#475569'}}/>
-              {m.label}
+              style={{ background: active.includes(m.key)?m.color+'20':'rgba(255,255,255,0.04)', border:`1px solid ${active.includes(m.key)?m.color+'60':'transparent'}`, color: active.includes(m.key)?m.color:'#475569' }}>
+              <span className="dot" style={{background:active.includes(m.key)?m.color:'#475569'}}/>{m.label}
             </button>
           ))}
           <div className="ml-auto">
-            <select value={etF} onChange={e=>setEtF(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
+            <select value={etF} onChange={e=>setEtF(e.target.value)} className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
               <option value="all">Alle Event-Typen</option>
               {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -486,7 +532,6 @@ const Dashboard = ({ entries, eventTypes }) => {
         </div>
       </div>
 
-      {/* KPI-Karten */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {METRICS.map(m=>(
           <div key={m.key} className="glass glow rounded-2xl p-4 up">
@@ -495,58 +540,40 @@ const Dashboard = ({ entries, eventTypes }) => {
               <span className="text-slate-400 text-xs font-medium">{m.label}</span>
             </div>
             <div className="text-3xl font-bold" style={{color:m.color}}>{totals[m.key]}</div>
-            <div className="text-slate-600 text-xs mt-1">
-              {filtered.length ? `Avg. ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '\u2014'}
-            </div>
+            <div className="text-slate-600 text-xs mt-1">{filtered.length ? `Avg. ${(totals[m.key]/filtered.length).toFixed(1)} pro Event` : '‚Äî'}</div>
           </div>
         ))}
       </div>
 
-      {/* Hauptgrafik */}
-      <ChartCard title={"Entwicklung \u00fcber Zeit"}
-        extra={
-          <div className="flex gap-1">
-            {[['bar','Balken'],['line','Linie'],['area','Fl\u00e4che']].map(([v,l])=>(
-              <button key={v} onClick={e=>{e.stopPropagation();setView(v);}}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-        }>
-        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null}
-          options={mkCfg({ beginAtZero: view==='bar' })} h={190}/>
+      <ChartCard title={"Entwicklung √ºber Zeit"}
+        extra={<div className="flex gap-1">{[['bar','Balken'],['line','Linie'],['area','Fl√§che']].map(([v,l])=>(
+          <button key={v} onClick={e=>{e.stopPropagation();setView(v);}}
+            className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>{l}</button>
+        ))}</div>}>
+        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg({ beginAtZero: view==='bar' })} h={190}/>
       </ChartCard>
 
-      {/* Verteilung + Kumulativ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Verteilung gesamt">
-          <ChartCanvas id={`donut-${from}-${to}-${etF}-${totKey}`} type="doughnut"
-            data={donutData} options={mkCfgNoScale()} h={170}/>
+          <ChartCanvas id={`donut-${from}-${to}-${etF}-${totKey}`} type="doughnut" data={donutData} options={mkCfgNoScale()} h={170}/>
         </ChartCard>
         <ChartCard title="Kumulativer Verlauf">
-          <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line"
-            data={filtered.length?cumulData:null} options={mkCfg({beginAtZero:false})} h={170}/>
+          <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line" data={filtered.length?cumulData:null} options={mkCfg({beginAtZero:false})} h={170}/>
         </ChartCard>
       </div>
 
-      {/* Nach Event-Typ */}
       {etF==='all' && etData && (
         <ChartCard title="Vergleich nach Event-Typ">
-          <ChartCanvas id={`et-${from}-${to}-${active.join()}-${totKey}`} type="bar"
-            data={etData} options={mkCfg()} h={170}/>
+          <ChartCanvas id={`et-${from}-${to}-${active.join()}-${totKey}`} type="bar" data={etData} options={mkCfg()} h={170}/>
         </ChartCard>
       )}
 
-      {/* Einzelne Metriken */}
       {activeM.length>0 && (
         <ChartCard title="Einzelne Metriken" defaultOpen={false}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {activeM.map(m => {
-              const d = filtered.length ? {
-                labels: filtered.map(e=>fmtShort(e.date)),
-                datasets: [{label:m.label, data:filtered.map(e=>Number(e[m.key])||0), backgroundColor:m.color+'aa', borderRadius:4}],
-              } : null;
+              const vals = filtered.map(e=>Number(e[m.key])||0);
+              const d = filtered.length ? { labels: filtered.map(e=>fmtShort(e.date)), datasets: [{label:m.label, data:vals, backgroundColor:m.color+'aa', borderRadius:4}] } : null;
               return (
                 <div key={m.key} className="rounded-xl p-3" style={{border:`1px solid ${m.color}25`,background:`${m.color}08`}}>
                   <div className="flex items-center gap-2 mb-2">
@@ -555,7 +582,7 @@ const Dashboard = ({ entries, eventTypes }) => {
                     <span className="ml-auto text-xl font-bold" style={{color:m.color}}>{totals[m.key]}</span>
                   </div>
                   <ChartCanvas id={`${m.key}-${from}-${to}-${etF}-${totals[m.key]}`} type="bar" data={d}
-                    options={mkCfg({plugins:{legend:{display:false}}})} h={100}/>
+                    options={mkCfg({plugins:{legend:{display:false}}, beginAtZero: true})} h={100}/>
                 </div>
               );
             })}
@@ -563,9 +590,8 @@ const Dashboard = ({ entries, eventTypes }) => {
         </ChartCard>
       )}
 
-      {/* Tabelle */}
       {filtered.length>0 && (
-        <ChartCard title={`Letzte Eintr\u00e4ge (${Math.min(15,filtered.length)} von ${filtered.length})`} defaultOpen={false}>
+        <ChartCard title={`Letzte Eintr√§ge (${Math.min(15,filtered.length)} von ${filtered.length})`} defaultOpen={false}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -580,12 +606,11 @@ const Dashboard = ({ entries, eventTypes }) => {
                 {[...filtered].reverse().slice(0,15).map((e,i)=>{
                   const et = eventTypes.find(t=>t.id===e.eventTypeId);
                   return (
-                    <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)', background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
-                      <td className="px-4 py-1.5 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date, e.dateTo)}</td>
-                      <td className="px-4 py-1.5 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'\u2014'}</td>
+                    <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)',background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
+                      <td className="px-4 py-1.5 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date,e.dateTo)}</td>
+                      <td className="px-4 py-1.5 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'‚Äî'}</td>
                       <td className="px-3 py-1.5">
-                        {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>
-                            : <span className="text-slate-700 text-xs">&mdash;</span>}
+                        {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span> : <span className="text-slate-700 text-xs">&mdash;</span>}
                       </td>
                       {METRICS.map(m=><td key={m.key} className="px-3 py-1.5 text-right font-semibold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
                     </tr>
@@ -607,16 +632,16 @@ const Comparison = ({ entries, eventTypes }) => {
   const [mode, setMode] = useState('month');
   const [etF,  setEtF]  = useState('all');
   const [periods, setPeriods] = useState([
-    { id:'a', ym:'', year:'', from:daysAgo(60),  to:today()       },
-    { id:'b', ym:'', year:'', from:daysAgo(120), to:daysAgo(61)  },
+    { id:'a', ym:'', year:'', from:daysAgo(60),  to:today() },
+    { id:'b', ym:'', year:'', from:daysAgo(120), to:daysAgo(61) },
   ]);
 
   const availYM    = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,7)))].sort().reverse(),[entries]);
   const availYears = useMemo(()=>[...new Set(entries.map(e=>e.date.slice(0,4)))].sort().reverse(),[entries]);
 
   const getRaw = p => {
-    if (mode==='month')  return p.ym   ? entries.filter(e=>e.date>=firstOfMonth(p.ym)&&e.date<=lastOfMonth(p.ym)) : [];
-    if (mode==='year')   return p.year ? entries.filter(e=>e.date>=`${p.year}-01-01`&&e.date<=`${p.year}-12-31`) : [];
+    if (mode==='month') return p.ym   ? entries.filter(e=>e.date>=firstOfMonth(p.ym)&&e.date<=lastOfMonth(p.ym)) : [];
+    if (mode==='year')  return p.year ? entries.filter(e=>e.date>=`${p.year}-01-01`&&e.date<=`${p.year}-12-31`)  : [];
     return entries.filter(e=>e.date>=p.from&&e.date<=p.to);
   };
 
@@ -627,12 +652,11 @@ const Comparison = ({ entries, eventTypes }) => {
   }),[periods, entries, mode, etF]);
 
   const getLabel = p =>
-    mode==='month' ? (p.ym   ? monthLabel(p.ym)   : `Zeitraum ${p.id.toUpperCase()}`) :
-    mode==='year'  ? (p.year ? p.year              : `Jahr ${p.id.toUpperCase()}`)     :
+    mode==='month' ? (p.ym   ? monthLabel(p.ym)  : `Zeitraum ${p.id.toUpperCase()}`) :
+    mode==='year'  ? (p.year ? p.year             : `Jahr ${p.id.toUpperCase()}`)     :
                      `Zeitraum ${p.id.toUpperCase()}`;
 
   const hasData = periodData.some(pd=>pd.list.length>0);
-
   const addPeriod = () => {
     if (periods.length>=6) return;
     const letters='abcdefghijklmnopqrstuvwxyz';
@@ -641,18 +665,12 @@ const Comparison = ({ entries, eventTypes }) => {
   };
   const removePeriod = id => { if (periods.length<=2) return; setPeriods(p=>p.filter(pd=>pd.id!==id)); };
   const updatePeriod = (id,key,val) => setPeriods(p=>p.map(pd=>pd.id===id?{...pd,[key]:val}:pd));
-
   const compId = `cmp-${mode}-${periods.map(p=>p.ym+p.year+p.from+p.to).join('|')}-${etF}`;
-  const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
+  const inp    = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
 
   const compData = hasData ? {
     labels: METRICS.map(m=>m.label),
-    datasets: periodData.map((pd,i)=>({
-      label: getLabel(pd),
-      data: METRICS.map(m=>pd.totals[m.key]),
-      backgroundColor: PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'bb',
-      borderRadius: 4,
-    })),
+    datasets: periodData.map((pd,i)=>({ label:getLabel(pd), data:METRICS.map(m=>pd.totals[m.key]), backgroundColor:PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'bb', borderRadius:4 })),
   } : null;
 
   return (
@@ -662,14 +680,11 @@ const Comparison = ({ entries, eventTypes }) => {
         <p className="text-slate-500 text-sm mt-0.5">Mehrere Zeitr&auml;ume gleichzeitig vergleichen</p>
       </div>
 
-      {/* Controls */}
       <div className="glass rounded-2xl p-5 space-y-4">
         <div className="flex gap-2 flex-wrap items-center">
           {[['month','Nach Monat'],['year','Nach Jahr'],['custom','Benutzerdefiniert']].map(([v,l])=>(
             <button key={v} onClick={()=>setMode(v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${mode===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-              {l}
-            </button>
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${mode===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>{l}</button>
           ))}
           <div className="ml-auto">
             <select value={etF} onChange={e=>setEtF(e.target.value)} className={inp+" text-xs py-1.5"}>
@@ -679,19 +694,14 @@ const Comparison = ({ entries, eventTypes }) => {
           </div>
         </div>
 
-        {/* Period cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {periods.map((p,i)=>{
+          {periods.map((p,i) => {
             const col = PERIOD_PALETTE[i%PERIOD_PALETTE.length];
             return (
               <div key={p.id} className="p-3 rounded-xl" style={{border:`1px solid ${col}44`,background:`${col}11`}}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold" style={{color:col}}>Zeitraum {p.id.toUpperCase()}</span>
-                  {periods.length>2 && (
-                    <button onClick={()=>removePeriod(p.id)} className="text-slate-600 hover:text-red-400 transition-all ml-2">
-                      <SI p={IC.x} size={12}/>
-                    </button>
-                  )}
+                  {periods.length>2 && <button onClick={()=>removePeriod(p.id)} className="text-slate-600 hover:text-red-400 transition-all ml-2"><SI p={IC.x} size={12}/></button>}
                 </div>
                 {mode==='month' && (
                   <select value={p.ym} onChange={e=>updatePeriod(p.id,'ym',e.target.value)} className={inp+" w-full"}>
@@ -720,25 +730,21 @@ const Comparison = ({ entries, eventTypes }) => {
         {periods.length<6 && (
           <button onClick={addPeriod}
             className="flex items-center gap-2 text-slate-500 hover:text-violet-400 text-xs font-medium transition-all px-3 py-2 rounded-xl hover:bg-white/5 border border-dashed border-white/10 hover:border-violet-500/30 w-full justify-center">
-            <SI p={IC.plus} size={13}/>
-            Weiteren Zeitraum hinzuf&uuml;gen
+            <SI p={IC.plus} size={13}/>Weiteren Zeitraum hinzuf&uuml;gen
           </button>
         )}
       </div>
 
       {hasData ? (
         <>
-          {/* Summary table */}
           <div className="glass rounded-2xl p-5 glow overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
                   <th className="text-left pb-3 text-slate-500 text-xs font-medium pr-3">Metrik</th>
                   {periodData.map((pd,i)=>(
-                    <th key={pd.id} className="text-right pb-3 font-semibold text-xs whitespace-nowrap px-2"
-                      style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>
-                      {getLabel(pd)}<br/>
-                      <span className="text-slate-600 font-normal">({pd.list.length} Events)</span>
+                    <th key={pd.id} className="text-right pb-3 font-semibold text-xs whitespace-nowrap px-2" style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>
+                      {getLabel(pd)}<br/><span className="text-slate-600 font-normal">({pd.list.length} Events)</span>
                     </th>
                   ))}
                 </tr>
@@ -746,17 +752,9 @@ const Comparison = ({ entries, eventTypes }) => {
               <tbody>
                 {METRICS.map(m=>(
                   <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-                    <td className="py-3 pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="dot" style={{background:m.color}}/>
-                        <span className="text-slate-300 font-medium whitespace-nowrap">{m.label}</span>
-                      </div>
-                    </td>
+                    <td className="py-3 pr-3"><div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300 font-medium whitespace-nowrap">{m.label}</span></div></td>
                     {periodData.map((pd,i)=>(
-                      <td key={pd.id} className="py-3 text-right text-xl font-bold px-2"
-                        style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'dd'}}>
-                        {pd.totals[m.key]}
-                      </td>
+                      <td key={pd.id} className="py-3 text-right text-xl font-bold px-2" style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'dd'}}>{pd.totals[m.key]}</td>
                     ))}
                   </tr>
                 ))}
@@ -764,35 +762,23 @@ const Comparison = ({ entries, eventTypes }) => {
             </table>
           </div>
 
-          {/* Grouped bar chart */}
           {compData && (
             <ChartCard title="Vergleich gesamt &mdash; alle Metriken">
               <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={200}/>
             </ChartCard>
           )}
 
-          {/* Per-metric bar charts */}
           <div className="grid grid-cols-2 gap-4">
             {METRICS.map(m=>{
-              const mData = hasData ? {
-                labels: periodData.map((_,i)=>`Zeitraum ${periods[i].id.toUpperCase()}`),
-                datasets:[{
-                  label: m.label,
-                  data: periodData.map(pd=>pd.totals[m.key]),
-                  backgroundColor: periodData.map((_,i)=>PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'cc'),
-                  borderRadius: 4,
-                }],
-              } : null;
+              const mData = hasData ? { labels: periodData.map((_,i)=>getLabel(periodData[i])), datasets:[{ label:m.label, data:periodData.map(pd=>pd.totals[m.key]), backgroundColor:periodData.map((_,i)=>PERIOD_PALETTE[i%PERIOD_PALETTE.length]+'cc'), borderRadius:4 }] } : null;
               return mData ? (
                 <ChartCard key={m.key} title={m.label}>
-                  <ChartCanvas id={`cmp-m-${m.key}-${compId}`} type="bar" data={mData}
-                    options={mkCfg({plugins:{legend:{display:false}}})} h={130}/>
+                  <ChartCanvas id={`cmp-m-${m.key}-${compId}`} type="bar" data={mData} options={mkCfg({plugins:{legend:{display:false}}})} h={130}/>
                 </ChartCard>
               ) : null;
             })}
           </div>
 
-          {/* Avg per event */}
           {periodData.filter(pd=>pd.list.length>0).length>=2 && (
             <div className="glass rounded-2xl p-5 glow overflow-x-auto">
               <h3 className="font-semibold text-slate-200 text-sm mb-4">Durchschnitt pro Event</h3>
@@ -801,22 +787,14 @@ const Comparison = ({ entries, eventTypes }) => {
                   <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
                     <th className="text-left pb-3 text-slate-500 text-xs font-medium pr-3">Metrik</th>
                     {periodData.map((pd,i)=>(
-                      <th key={pd.id} className="text-right pb-3 text-xs font-medium px-2 whitespace-nowrap"
-                        style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>
-                        {getLabel(pd)}
-                      </th>
+                      <th key={pd.id} className="text-right pb-3 text-xs font-medium px-2 whitespace-nowrap" style={{color:PERIOD_PALETTE[i%PERIOD_PALETTE.length]}}>{getLabel(pd)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {METRICS.map(m=>(
                     <tr key={m.key} style={{borderTop:'1px solid rgba(255,255,255,0.04)'}}>
-                      <td className="py-2.5 pr-3">
-                        <div className="flex items-center gap-2">
-                          <span className="dot" style={{background:m.color}}/>
-                          <span className="text-slate-300 whitespace-nowrap">{m.label}</span>
-                        </div>
-                      </td>
+                      <td className="py-2.5 pr-3"><div className="flex items-center gap-2"><span className="dot" style={{background:m.color}}/><span className="text-slate-300 whitespace-nowrap">{m.label}</span></div></td>
                       {periodData.map(pd=>(
                         <td key={pd.id} className="py-2.5 text-right text-slate-200 font-semibold px-2">
                           {pd.list.length ? (pd.totals[m.key]/pd.list.length).toFixed(1) : <span className="text-slate-700">&mdash;</span>}
@@ -841,31 +819,16 @@ const Comparison = ({ entries, eventTypes }) => {
 
 // ‚îÄ‚îÄ Eintrag-Formular ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
-  const [form, setForm] = useState({
-    date: today(), dateTo: '', event: '', eventTypeId: '',
-    besucher: '', erstbesucher: '', entscheidungen: '', taufen: '',
-    notes: '', ...initialData,
-  });
+  const [form, setForm] = useState({ date:today(), dateTo:'', event:'', eventTypeId:'', besucher:'', erstbesucher:'', entscheidungen:'', taufen:'', notes:'', ...initialData });
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
-
-  const selectedType  = eventTypes.find(t=>t.id===form.eventTypeId);
-  const isRangeType   = selectedType?.isRange;
-
+  const selectedType = eventTypes.find(t=>t.id===form.eventTypeId);
+  const isRangeType  = selectedType?.isRange;
   const handleSubmit = e => {
     e.preventDefault();
     if (!form.date) return;
-    onSave({
-      ...form,
-      dateTo: isRangeType ? (form.dateTo||form.date) : '',
-      besucher:       Number(form.besucher)||0,
-      erstbesucher:   Number(form.erstbesucher)||0,
-      entscheidungen: Number(form.entscheidungen)||0,
-      taufen:         Number(form.taufen)||0,
-    });
+    onSave({ ...form, dateTo: isRangeType?(form.dateTo||form.date):'', besucher:Number(form.besucher)||0, erstbesucher:Number(form.erstbesucher)||0, entscheidungen:Number(form.entscheidungen)||0, taufen:Number(form.taufen)||0 });
   };
-
   const inp = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 transition-all text-sm";
-
   return (
     <div className="up max-w-2xl">
       <div className="mb-5">
@@ -877,73 +840,49 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
           <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Event-Details</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-400 text-xs mb-1.5">{isRangeType ? 'Startdatum *' : 'Datum *'}</label>
+              <label className="block text-slate-400 text-xs mb-1.5">{isRangeType?'Startdatum *':'Datum *'}</label>
               <input type="date" value={form.date} onChange={e=>set('date',e.target.value)} className={inp} required/>
             </div>
             {isRangeType && (
               <div>
                 <label className="block text-slate-400 text-xs mb-1.5">Enddatum</label>
-                <input type="date" value={form.dateTo} min={form.date}
-                  onChange={e=>set('dateTo',e.target.value)} className={inp}/>
+                <input type="date" value={form.dateTo} min={form.date} onChange={e=>set('dateTo',e.target.value)} className={inp}/>
               </div>
             )}
             <div>
               <label className="block text-slate-400 text-xs mb-1.5">Event-Name</label>
-              <input type="text" value={form.event} onChange={e=>set('event',e.target.value)}
-                placeholder="z. B. Sonntagsgottesdienst" className={inp}/>
+              <input type="text" value={form.event} onChange={e=>set('event',e.target.value)} placeholder="z. B. Sonntagsgottesdienst" className={inp}/>
             </div>
           </div>
           <div>
             <label className="block text-slate-400 text-xs mb-1.5">Event-Typ</label>
-            <select value={form.eventTypeId} onChange={e=>set('eventTypeId',e.target.value)}
-              className={inp}
-              style={selectedType?{borderColor:selectedType.color+'60',color:selectedType.color}:{}}>
+            <select value={form.eventTypeId} onChange={e=>set('eventTypeId',e.target.value)} className={inp} style={selectedType?{borderColor:selectedType.color+'60',color:selectedType.color}:{}}>
               <option value="">&mdash; Kein Typ &mdash;</option>
-              {eventTypes.map(t=>(
-                <option key={t.id} value={t.id}>{t.name}{t.isRange?' (Zeitraum)':''}</option>
-              ))}
+              {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}{t.isRange?' (Zeitraum)':''}</option>)}
             </select>
-            {isRangeType && (
-              <p className="text-amber-500/70 text-xs mt-1.5 flex items-center gap-1">
-                <SI p={IC.calendar} size={11}/> Zeitraum-Event: Gib optional ein Enddatum an
-              </p>
-            )}
+            {isRangeType && <p className="text-amber-500/70 text-xs mt-1.5 flex items-center gap-1"><SI p={IC.calendar} size={11}/> Zeitraum-Event: Gib optional ein Enddatum an</p>}
           </div>
         </div>
-
         <div className="glass rounded-2xl p-5 glow">
           <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-4">Zahlen</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {METRICS.map(m=>(
               <div key={m.key}>
-                <label className="flex items-center gap-1.5 text-xs font-semibold mb-1.5" style={{color:m.color}}>
-                  <span className="dot" style={{background:m.color}}/>{m.label}
-                </label>
-                <input type="number" min="0" value={form[m.key]}
-                  onChange={e=>set(m.key,e.target.value)} placeholder="0"
-                  className={inp} style={form[m.key]?{borderColor:m.color+'55'}:{}}/>
+                <label className="flex items-center gap-1.5 text-xs font-semibold mb-1.5" style={{color:m.color}}><span className="dot" style={{background:m.color}}/>{m.label}</label>
+                <input type="number" min="0" value={form[m.key]} onChange={e=>set(m.key,e.target.value)} placeholder="0" className={inp} style={form[m.key]?{borderColor:m.color+'55'}:{}}/>
               </div>
             ))}
           </div>
         </div>
-
         <div className="glass rounded-2xl p-5 glow">
           <label className="block text-slate-400 text-xs mb-1.5">Notizen</label>
-          <textarea value={form.notes} onChange={e=>set('notes',e.target.value)}
-            placeholder="Thema, Gastredner, Besonderheiten \u2026" rows={3} className={inp+" resize-none"}/>
+          <textarea value={form.notes} onChange={e=>set('notes',e.target.value)} placeholder={"Thema, Gastredner, Besonderheiten ‚Ä¶"} rows={3} className={inp+" resize-none"}/>
         </div>
-
         <div className="flex gap-3">
-          <button type="submit"
-            className="flex-1 bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white font-semibold py-3 px-6 rounded-xl transition-all text-sm">
-            {initialData ? '\u00c4nderungen speichern' : 'Eintrag hinzuf\u00fcgen'}
+          <button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white font-semibold py-3 px-6 rounded-xl transition-all text-sm">
+            {initialData ? '√Ñnderungen speichern' : 'Eintrag hinzuf√ºgen'}
           </button>
-          {onCancel && (
-            <button type="button" onClick={onCancel}
-              className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 transition-all text-sm">
-              Abbrechen
-            </button>
-          )}
+          {onCancel && <button type="button" onClick={onCancel} className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 transition-all text-sm">Abbrechen</button>}
         </div>
       </form>
     </div>
@@ -952,13 +891,13 @@ const EntryForm = ({ onSave, initialData, onCancel, eventTypes }) => {
 
 // ‚îÄ‚îÄ Eintrags-Liste ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
-  const [search,  setSearch]  = useState('');
-  const [desc,    setDesc]    = useState(true);
-  const [confirm, setConfirm] = useState(null);
-  const [fromF,   setFromF]   = useState('');
-  const [toF,     setToF]     = useState('');
-  const [etF,     setEtF]     = useState('all');
-  const [openNote,setOpenNote]= useState(null);
+  const [search,   setSearch]   = useState('');
+  const [desc,     setDesc]     = useState(true);
+  const [confirm,  setConfirm]  = useState(null);
+  const [fromF,    setFromF]    = useState('');
+  const [toF,      setToF]      = useState('');
+  const [etF,      setEtF]      = useState('all');
+  const [openNote, setOpenNote] = useState(null);
 
   const filtered = useMemo(()=>{
     let list = [...entries];
@@ -973,7 +912,6 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
     if (confirm===id) { onDelete(id); setConfirm(null); }
     else { setConfirm(id); setTimeout(()=>setConfirm(c=>c===id?null:c),3000); }
   };
-
   const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200";
 
   return (
@@ -981,27 +919,19 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold grad">Eintr&auml;ge</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt - {filtered.length} angezeigt</p>
+          <p className="text-slate-500 text-sm mt-0.5">{entries.length} gesamt &mdash; {filtered.length} angezeigt</p>
         </div>
-        {onAdd && (
-          <button onClick={onAdd}
-            className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all">
-            <SI p={IC.plus} size={13}/> Neu
-          </button>
-        )}
+        {onAdd && <button onClick={onAdd} className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all"><SI p={IC.plus} size={13}/> Neu</button>}
       </div>
-
       <div className="glass rounded-2xl p-4 space-y-3">
         <div className="flex gap-2 flex-wrap">
-          <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Suchen \u2026" className={inp+" flex-1 min-w-[130px]"}/>
+          <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder={"Suchen ‚Ä¶"} className={inp+" flex-1 min-w-[130px]"}/>
           <select value={etF} onChange={e=>setEtF(e.target.value)} className={inp}>
             <option value="all">Alle Typen</option>
             {eventTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          <button onClick={()=>setDesc(p=>!p)}
-            className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-400 hover:bg-white/10 transition-all whitespace-nowrap">
-            {desc?'Neueste zuerst':'\u00c4lteste zuerst'}
+          <button onClick={()=>setDesc(p=>!p)} className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-400 hover:bg-white/10 transition-all whitespace-nowrap">
+            {desc?'Neueste zuerst':'√Ñlteste zuerst'}
           </button>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
@@ -1012,7 +942,6 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
           {(fromF||toF)&&<button onClick={()=>{setFromF('');setToF('');}} className="text-xs text-violet-400 hover:text-violet-300">x Zur&uuml;cksetzen</button>}
         </div>
       </div>
-
       {filtered.length===0 ? (
         <div className="glass rounded-2xl py-16 text-center">
           <div className="text-slate-400 font-medium mb-1">Keine Eintr&auml;ge gefunden</div>
@@ -1027,12 +956,9 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <span className="font-semibold text-slate-200 text-sm">{fmtRange(e.date, e.dateTo)}</span>
+                      <span className="font-semibold text-slate-200 text-sm">{fmtRange(e.date,e.dateTo)}</span>
                       {e.event&&<span className="text-xs text-slate-300 font-medium">{e.event}</span>}
                       {et&&<span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>}
-                      {et?.isRange&&e.dateTo&&e.dateTo!==e.date&&(
-                        <span className="pill" style={{background:'rgba(245,158,11,0.15)',color:'#f59e0b'}}>Zeitraum</span>
-                      )}
                     </div>
                     <div className="flex flex-wrap gap-4">
                       {METRICS.map(m=>(
@@ -1044,24 +970,17 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
                       ))}
                     </div>
                     {e.notes&&(
-                      <button onClick={()=>setOpenNote(openNote===e.id?null:e.id)}
-                        className="mt-1.5 text-slate-600 hover:text-slate-400 text-xs text-left transition-all">
-                        {openNote===e.id?e.notes:`${e.notes.slice(0,60)}${e.notes.length>60?'\u2026':''}`}
+                      <button onClick={()=>setOpenNote(openNote===e.id?null:e.id)} className="mt-1.5 text-slate-600 hover:text-slate-400 text-xs text-left transition-all">
+                        {openNote===e.id?e.notes:`${e.notes.slice(0,60)}${e.notes.length>60?'‚Ä¶':''}`}
                       </button>
                     )}
                   </div>
                   {(onEdit||onDelete) && (
                     <div className="flex gap-1.5 flex-shrink-0">
-                      {onEdit && (
-                        <button onClick={()=>onEdit(e)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all">
-                          <SI p={IC.edit} size={13}/>
-                        </button>
-                      )}
+                      {onEdit && <button onClick={()=>onEdit(e)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all"><SI p={IC.edit} size={13}/></button>}
                       {onDelete && (
-                        <button onClick={()=>del(e.id)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${confirm===e.id?'bg-red-900/40 text-red-400':'bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400'}`}
-                          title={confirm===e.id?'Nochmal klicken zum L\u00f6schen':'L\u00f6schen'}>
+                        <button onClick={()=>del(e.id)} title={confirm===e.id?'Nochmal klicken zum L√∂schen':'L√∂schen'}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${confirm===e.id?'bg-red-900/40 text-red-400':'bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400'}`}>
                           <SI p={confirm===e.id?IC.warn:IC.trash} size={13}/>
                         </button>
                       )}
@@ -1078,11 +997,7 @@ const EntryList = ({ entries, eventTypes, onEdit, onDelete, onAdd }) => {
 };
 
 // ‚îÄ‚îÄ Event-Typ-Verwaltung ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const SWATCH_COLORS = [
-  '#6366f1','#8b5cf6','#a855f7','#ec4899',
-  '#ef4444','#f97316','#f59e0b','#eab308',
-  '#10b981','#14b8a6','#06b6d4','#3b82f6',
-];
+const SWATCH_COLORS = ['#6366f1','#8b5cf6','#a855f7','#ec4899','#ef4444','#f97316','#f59e0b','#eab308','#10b981','#14b8a6','#06b6d4','#3b82f6'];
 
 const ColorPicker = ({ value, onChange }) => (
   <div className="space-y-2">
@@ -1090,17 +1005,11 @@ const ColorPicker = ({ value, onChange }) => (
       {SWATCH_COLORS.map(c=>(
         <button key={c} type="button" onClick={()=>onChange(c)}
           className="w-6 h-6 rounded-full flex-shrink-0 transition-all hover:scale-110"
-          style={{
-            background: c,
-            outline: value===c ? `2px solid ${c}` : '2px solid transparent',
-            outlineOffset: '2px',
-          }}/>
+          style={{ background:c, outline:value===c?`2px solid ${c}`:'2px solid transparent', outlineOffset:'2px' }}/>
       ))}
-      <label className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center bg-white/10 border border-white/20 cursor-pointer hover:bg-white/20 transition-all relative overflow-hidden"
-        title="Eigene Farbe">
+      <label className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center bg-white/10 border border-white/20 cursor-pointer hover:bg-white/20 transition-all relative overflow-hidden" title="Eigene Farbe">
         <span className="text-slate-400 text-xs leading-none select-none">+</span>
-        <input type="color" value={value} onChange={e=>onChange(e.target.value)}
-          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"/>
+        <input type="color" value={value} onChange={e=>onChange(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"/>
       </label>
     </div>
     <div className="flex items-center gap-2">
@@ -1120,25 +1029,17 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
   const [editRange, setEditRange] = useState(false);
 
   const uses = id => entries.filter(e=>e.eventTypeId===id).length;
-
-  const add = () => {
+  const add  = () => {
     if (!name.trim()) return;
     setEventTypes(p=>[...p,{id:genId(),name:name.trim(),color,isRange}]);
     setName(''); setColor('#8b5cf6'); setIsRange(false);
   };
-
-  const save = id => {
-    setEventTypes(p=>p.map(t=>t.id===id?{...t,name:editName,color:editColor,isRange:editRange}:t));
-    setEditId(null);
-  };
-
+  const save   = id => { setEventTypes(p=>p.map(t=>t.id===id?{...t,name:editName,color:editColor,isRange:editRange}:t)); setEditId(null); };
   const remove = id => {
-    if (uses(id)>0) { alert(`Dieser Typ wird in ${uses(id)} Eintr\u00e4gen verwendet.\nBitte zuerst die betreffenden Eintr\u00e4ge anpassen.`); return; }
+    if (uses(id)>0) { alert(`Dieser Typ wird in ${uses(id)} Eintr√§gen verwendet.\nBitte zuerst die betreffenden Eintr√§ge anpassen.`); return; }
     setEventTypes(p=>p.filter(t=>t.id!==id));
   };
-
   const startEdit = t => { setEditId(t.id); setEditName(t.name); setEditColor(t.color); setEditRange(!!t.isRange); };
-
   const inp = "bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600";
 
   return (
@@ -1147,27 +1048,19 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
         <h1 className="text-xl font-bold grad">Event-Typen</h1>
         <p className="text-slate-500 text-sm mt-0.5">Kategorien f&uuml;r Events verwalten</p>
       </div>
-
       <div className="glass rounded-2xl p-5 glow space-y-3">
         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Neuer Typ</p>
         <div className="flex gap-2">
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Name des Event-Typs"
-            className={inp+" flex-1"} onKeyDown={e=>e.key==='Enter'&&add()}/>
-          <button onClick={add}
-            className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap">
-            Hinzuf&uuml;gen
-          </button>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Name des Event-Typs" className={inp+" flex-1"} onKeyDown={e=>e.key==='Enter'&&add()}/>
+          <button onClick={add} className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap">Hinzuf&uuml;gen</button>
         </div>
         <ColorPicker value={color} onChange={setColor}/>
         <label className="flex items-center gap-3 cursor-pointer">
-          <button type="button" onClick={()=>setIsRange(p=>!p)}
-            className={`toggle ${isRange?'on':''}`}
-            style={{background: isRange?'#f59e0b':'rgba(255,255,255,0.1)'}}/>
+          <button type="button" onClick={()=>setIsRange(p=>!p)} className={`toggle ${isRange?'on':''}`} style={{background:isRange?'#f59e0b':'rgba(255,255,255,0.1)'}}/>
           <span className="text-slate-300 text-sm">Zeitraum-Event</span>
-          <span className="text-slate-500 text-xs">(z. B. Freizeit, Konferenz &uuml;ber mehrere Tage)</span>
+          <span className="text-slate-500 text-xs">(z. B. Freizeit, Konferenz)</span>
         </label>
       </div>
-
       <div className="glass rounded-2xl p-5 glow space-y-2">
         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3">Vorhandene Typen</p>
         {eventTypes.map(t=>(
@@ -1175,20 +1068,10 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
             {editId===t.id ? (
               <div className="space-y-3">
                 <div className="flex gap-2 items-center">
-                  <input value={editName} onChange={e=>setEditName(e.target.value)}
-                    className={inp+" flex-1 py-1.5"} autoFocus onKeyDown={e=>e.key==='Enter'&&save(t.id)}/>
-                  <button type="button" onClick={()=>setEditRange(p=>!p)}
-                    className={`toggle flex-shrink-0 ${editRange?'on':''}`}
-                    style={{background:editRange?'#f59e0b':'rgba(255,255,255,0.1)'}}
-                    title={editRange?'Zeitraum-Event':'Einzeldatum'}/>
-                  <button onClick={()=>save(t.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition-all">
-                    <SI p={IC.check} size={13}/>
-                  </button>
-                  <button onClick={()=>setEditId(null)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:bg-white/10 transition-all">
-                    <SI p={IC.x} size={13}/>
-                  </button>
+                  <input value={editName} onChange={e=>setEditName(e.target.value)} className={inp+" flex-1 py-1.5"} autoFocus onKeyDown={e=>e.key==='Enter'&&save(t.id)}/>
+                  <button type="button" onClick={()=>setEditRange(p=>!p)} className={`toggle flex-shrink-0 ${editRange?'on':''}`} style={{background:editRange?'#f59e0b':'rgba(255,255,255,0.1)'}}/>
+                  <button onClick={()=>save(t.id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60 transition-all"><SI p={IC.check} size={13}/></button>
+                  <button onClick={()=>setEditId(null)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:bg-white/10 transition-all"><SI p={IC.x} size={13}/></button>
                 </div>
                 <ColorPicker value={editColor} onChange={setEditColor}/>
               </div>
@@ -1203,14 +1086,8 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
                   <span className="text-slate-600 text-xs">{uses(t.id)} Eintr&auml;ge</span>
                 </div>
                 <span className="pill" style={{background:t.color+'22',color:t.color}}>{t.name}</span>
-                <button onClick={()=>startEdit(t)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all">
-                  <SI p={IC.edit} size={13}/>
-                </button>
-                <button onClick={()=>remove(t.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400 transition-all">
-                  <SI p={IC.trash} size={13}/>
-                </button>
+                <button onClick={()=>startEdit(t)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-blue-900/30 text-slate-500 hover:text-blue-400 transition-all"><SI p={IC.edit} size={13}/></button>
+                <button onClick={()=>remove(t.id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-900/25 text-slate-500 hover:text-red-400 transition-all"><SI p={IC.trash} size={13}/></button>
               </div>
             )}
           </div>
@@ -1220,32 +1097,23 @@ const EventTypeManager = ({ eventTypes, setEventTypes, entries }) => {
   );
 };
 
-// ‚îÄ‚îÄ Sync-Status-Anzeige ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Sync-Status ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const SyncDot = ({ state }) => {
-  const MAP = {
-    connecting: ['#64748b', 'Verbinden\u2026'],
-    synced:     ['#10b981', 'Synchronisiert'],
-    saving:     ['#f59e0b', 'Speichern\u2026'],
-    error:      ['#ef4444', 'Offline'],
-  };
+  const MAP = { connecting:['#64748b','Verbinden‚Ä¶'], synced:['#10b981','Synchronisiert'], saving:['#f59e0b','Speichern‚Ä¶'], error:['#ef4444','Offline'] };
   const [col, label] = MAP[state] || MAP.connecting;
   return (
     <div className="flex items-center gap-1.5 flex-shrink-0" title={label}>
-      <span style={{
-        width:7, height:7, borderRadius:'50%', background:col, display:'inline-block',
-        boxShadow: state==='synced' ? `0 0 5px ${col}99` : 'none',
-        animation: state==='saving' ? 'pulse 1s infinite' : 'none',
-      }}/>
+      <span style={{ width:7, height:7, borderRadius:'50%', background:col, display:'inline-block', boxShadow:state==='synced'?`0 0 5px ${col}99`:'none', animation:state==='saving'?'pulse 1s infinite':'none' }}/>
     </div>
   );
 };
 
-// ‚îÄ‚îÄ Login-Screen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+// ‚îÄ‚îÄ Login-Screen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const ADMIN_PW = '0207';
 
 const LoginScreen = ({ onLogin }) => {
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState(false);
+  const [pw,     setPw]     = useState('');
+  const [err,    setErr]    = useState(false);
   const [showPw, setShowPw] = useState(false);
 
   const tryAdmin = () => {
@@ -1258,34 +1126,29 @@ const LoginScreen = ({ onLogin }) => {
       <div className="w-full max-w-sm space-y-6 up">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white text-2xl mx-auto mb-4"
-            style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>R</div>
-          <div className="text-white font-bold text-xl">REVIVE</div>
-          <div className="text-slate-500 text-sm">Youth Stats</div>
+            style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>K</div>
+          <div className="text-white font-bold text-xl">Kirchen Stats</div>
+          <div className="text-slate-500 text-sm">Wunstorf &middot; Schaumburg &middot; Revive</div>
         </div>
-
         <div className="glass rounded-2xl p-6 glow space-y-3">
           <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider text-center mb-4">Anmelden als</p>
-
           <button onClick={()=>onLogin('viewer')}
             className="w-full py-3 rounded-xl text-sm font-semibold transition-all bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-white/20">
             Viewer &mdash; nur lesen
           </button>
-
           <div className="space-y-2">
             <div className="relative">
-              <input
-                type="text"
-                value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}}
+              <input type="text" value={pw}
+                onChange={e=>{setPw(e.target.value);setErr(false);}}
                 onKeyDown={e=>e.key==='Enter'&&tryAdmin()}
                 placeholder="Admin-Passwort"
                 autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
                 className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 text-sm pr-12 ${err?'border-red-500/60':'border-white/10'}`}
-                style={{WebkitTextSecurity: showPw ? 'none' : 'disc', letterSpacing: showPw ? 'normal' : '0.15em'}}
-                autoFocus
-              />
+                style={{WebkitTextSecurity:showPw?'none':'disc',letterSpacing:showPw?'normal':'0.15em'}}
+                autoFocus/>
               <button type="button" onClick={()=>setShowPw(p=>!p)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1">
-                <SI p={showPw ? "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" : "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z"} size={15}/>
+                <SI p={showPw?"M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22":"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z"} size={15}/>
               </button>
             </div>
             {err && <p className="text-red-400 text-xs px-1">Falsches Passwort</p>}
@@ -1302,75 +1165,105 @@ const LoginScreen = ({ onLogin }) => {
 };
 
 // ‚îÄ‚îÄ App ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
-const sortedArr = arr => [...arr].sort((a,b)=>a.date.localeCompare(b.date));
-
 const App = () => {
-  const [role, setRole] = useState(()=>localStorage.getItem('revive-role')||null);
-  const [entries,    setEntries]    = useState(()=>{ try{const s=localStorage.getItem('revive-entries'); return s?JSON.parse(s):[];}catch{return[];} });
-  const [eventTypes, setEventTypes] = useState(()=>{ try{const s=localStorage.getItem('revive-etypes'); return s?JSON.parse(s):DEFAULT_TYPES;}catch{return DEFAULT_TYPES;} });
-  const [page,    setPage]    = useState('dashboard');
-  const [editing, setEditing] = useState(null);
+  const [role,    setRole]    = useState(()=>localStorage.getItem('church-role')||null);
+  const [profile, setProfile] = useState(()=>localStorage.getItem('church-profile')||'revive');
+  const [entries,    setEntries]    = useState(()=>loadJSON(`church-entries-${localStorage.getItem('church-profile')||'revive'}`, []));
+  const [eventTypes, setEventTypes] = useState(()=>loadJSON(`church-etypes-${localStorage.getItem('church-profile')||'revive'}`, DEFAULT_TYPES));
+  const [page,      setPage]      = useState('dashboard');
+  const [editing,   setEditing]   = useState(null);
   const [syncState, setSyncState] = useState('connecting');
   const isAdmin = role === 'admin';
+  const prof = PROFILES.find(p=>p.id===profile) || PROFILES[2];
 
-  const login = (r) => { setRole(r); localStorage.setItem('revive-role', r); };
-  const logout = () => { setRole(null); localStorage.removeItem('revive-role'); setPage('dashboard'); };
+  const login  = r => { setRole(r); localStorage.setItem('church-role', r); };
+  const logout = () => { setRole(null); localStorage.removeItem('church-role'); setPage('dashboard'); };
 
-  // ‚îÄ‚îÄ Firestore helpers ‚îÄ‚îÄ
-  const writeEntries = (data) => {
+  // ‚îÄ‚îÄ Profil wechseln ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+  const switchProfile = pid => {
+    setProfile(pid);
+    localStorage.setItem('church-profile', pid);
+    setEntries(loadJSON(`church-entries-${pid}`, []));
+    setEventTypes(loadJSON(`church-etypes-${pid}`, DEFAULT_TYPES));
+    setSyncState('connecting');
+    setPage('dashboard');
+    setEditing(null);
+  };
+
+  // ‚îÄ‚îÄ Firestore schreiben (mit Rollback) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+  const writeEntries = (data, prevData) => {
     setSyncState('saving');
-    localStorage.setItem('revive-entries', JSON.stringify(data));
-    db.collection('revive').doc('entries').set({ data })
+    localStorage.setItem(`church-entries-${profile}`, JSON.stringify(data));
+    db.collection(profile).doc('entries').set({ data })
       .then(()=>setSyncState('synced'))
-      .catch(()=>setSyncState('error'));
+      .catch(()=>{
+        setSyncState('error');
+        if (prevData !== undefined) {
+          setEntries(prevData);
+          localStorage.setItem(`church-entries-${profile}`, JSON.stringify(prevData));
+        }
+      });
   };
-  const writeTypes = (data) => {
-    localStorage.setItem('revive-etypes', JSON.stringify(data));
-    db.collection('revive').doc('eventTypes').set({ data }).catch(()=>{});
+  const writeTypes = (data, prevData) => {
+    setSyncState('saving');
+    localStorage.setItem(`church-etypes-${profile}`, JSON.stringify(data));
+    db.collection(profile).doc('eventTypes').set({ data })
+      .then(()=>setSyncState('synced'))
+      .catch(()=>{
+        setSyncState('error');
+        if (prevData !== undefined) {
+          setEventTypes(prevData);
+          localStorage.setItem(`church-etypes-${profile}`, JSON.stringify(prevData));
+        }
+      });
   };
 
-  // ‚îÄ‚îÄ Firestore listeners (read-only) ‚îÄ‚îÄ
+  // ‚îÄ‚îÄ Firestore-Listener (wechseln mit Profil) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
   useEffect(() => {
-    const unsubE = db.collection('revive').doc('entries').onSnapshot(
+    setSyncState('connecting');
+    const unsubE = db.collection(profile).doc('entries').onSnapshot(
       { includeMetadataChanges: true },
       snap => {
         if (snap.metadata.hasPendingWrites) return;
         const data = snap.data()?.data || [];
-        localStorage.setItem('revive-entries', JSON.stringify(data));
+        localStorage.setItem(`church-entries-${profile}`, JSON.stringify(data));
         setEntries(data);
         setSyncState('synced');
       },
-      () => setSyncState('error')
+      ()=>setSyncState('error')
     );
-    const unsubT = db.collection('revive').doc('eventTypes').onSnapshot(
+    const unsubT = db.collection(profile).doc('eventTypes').onSnapshot(
       { includeMetadataChanges: true },
       snap => {
         if (snap.metadata.hasPendingWrites) return;
         const data = snap.data()?.data;
-        if (data) { localStorage.setItem('revive-etypes', JSON.stringify(data)); setEventTypes(data); }
-        setSyncState('synced');
+        if (data) { localStorage.setItem(`church-etypes-${profile}`, JSON.stringify(data)); setEventTypes(data); }
       },
       ()=>{}
     );
     return () => { unsubE(); unsubT(); };
-  }, []);
+  }, [profile]);
 
-  // ‚îÄ‚îÄ Mutationen (nur Admin) ‚îÄ‚îÄ
-  const addEntry = (e) => {
+  // ‚îÄ‚îÄ Mutationen ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+  const addEntry = e => {
+    const prev = entries;
     const next = sortedArr([...entries, {...e, id:genId()}]);
-    setEntries(next); writeEntries(next); setPage('entries');
+    setEntries(next); writeEntries(next, prev); setPage('entries');
   };
   const updateEntry = (id, d) => {
+    const prev = entries;
     const next = sortedArr(entries.map(e=>e.id===id?{...e,...d}:e));
-    setEntries(next); writeEntries(next); setEditing(null); setPage('entries');
+    setEntries(next); writeEntries(next, prev); setEditing(null); setPage('entries');
   };
-  const deleteEntry = (id) => {
+  const deleteEntry = id => {
+    const prev = entries;
     const next = entries.filter(e=>e.id!==id);
-    setEntries(next); writeEntries(next);
+    setEntries(next); writeEntries(next, prev);
   };
-  const updateEventTypes = (updater) => {
+  const updateEventTypes = updater => {
+    const prev = eventTypes;
     const next = typeof updater==='function' ? updater(eventTypes) : updater;
-    setEventTypes(next); writeTypes(next);
+    setEventTypes(next); writeTypes(next, prev);
   };
   const importCSV = ev => {
     const file = ev.target.files?.[0]; if (!file) return;
@@ -1380,10 +1273,9 @@ const App = () => {
       const imp = [];
       for (let i=1;i<lines.length;i++) {
         const c = lines[i].match(/(".*?"|[^,]+)/g)?.map(x=>x.replace(/^"|"$/g,'').replace(/""/g,'"'))||[];
-        if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',
-          besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
+        if (c[0]) imp.push({id:genId(),date:c[0],dateTo:'',event:c[1]||'',eventTypeId:'',besucher:Number(c[2])||0,erstbesucher:Number(c[3])||0,entscheidungen:Number(c[4])||0,taufen:Number(c[5])||0,notes:c[6]||''});
       }
-      if (imp.length) { const next=sortedArr([...entries,...imp]); setEntries(next); writeEntries(next); alert(imp.length+' Eintr\u00e4ge importiert.'); }
+      if (imp.length) { const prev=entries; const next=sortedArr([...entries,...imp]); setEntries(next); writeEntries(next,prev); alert(imp.length+' Eintr√§ge importiert.'); }
     };
     r.readAsText(file); ev.target.value='';
   };
@@ -1391,30 +1283,44 @@ const App = () => {
   if (!role) return <LoginScreen onLogin={login}/>;
 
   const TABS = [
-    {id:'dashboard', label:'Dashboard',    icon:IC.chart  },
-    {id:'compare',   label:'Vergleich',    icon:IC.compare},
-    ...(isAdmin ? [{id:'form', label:'Neuer Eintrag', icon:IC.plus}] : []),
-    {id:'entries',   label:'Eintr\u00e4ge', icon:IC.list  },
-    ...(isAdmin ? [{id:'types', label:'Event-Typen', icon:IC.tag}] : []),
+    {id:'dashboard', label:'Dashboard',       icon:IC.chart  },
+    {id:'compare',   label:'Vergleich',        icon:IC.compare},
+    ...(isAdmin?[{id:'form', label:'Neuer Eintrag', icon:IC.plus}]:[]),
+    {id:'entries',   label:'Eintr√§ge',   icon:IC.list   },
+    ...(isAdmin?[{id:'types', label:'Event-Typen', icon:IC.tag}]:[]),
   ];
 
   return (
     <div className="min-h-screen">
       <header style={{background:'rgba(15,15,26,0.95)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(255,255,255,0.07)',position:'sticky',top:0,zIndex:50}}>
+        {/* Profil-Leiste */}
+        <div style={{borderBottom:'1px solid rgba(255,255,255,0.05)',background:'rgba(255,255,255,0.02)'}} className="px-4 py-1.5 flex items-center justify-center gap-1">
+          {PROFILES.map(p=>(
+            <button key={p.id} onClick={()=>isAdmin||profile===p.id ? switchProfile(p.id) : null}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${profile===p.id?'text-white':'text-slate-500 hover:text-slate-300'}`}
+              style={profile===p.id ? {background:p.color+'25', border:`1px solid ${p.color}55`, color:p.color} : {background:'transparent',border:'1px solid transparent'}}
+              title={!isAdmin&&profile!==p.id?'Nur Admin kann Profil wechseln':''}>
+              {p.label}
+            </button>
+          ))}
+          <span className="text-slate-700 text-xs ml-2">
+            {isAdmin ? '‚Äî Profile frei w√§hlbar' : '‚Äî nur lesen'}
+          </span>
+        </div>
+
+        {/* Haupt-Navigation */}
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white text-sm flex-shrink-0"
-            style={{background:'linear-gradient(135deg,#8b5cf6,#ec4899)'}}>R</div>
+            style={{background:prof.grad}}>{prof.label[0]}</div>
           <div className="hidden sm:block mr-1">
-            <div className="text-white font-bold text-sm leading-none">REVIVE</div>
-            <div className="text-slate-600 text-xs">Youth Stats</div>
+            <div className="text-white font-bold text-sm leading-none">{prof.label.toUpperCase()}</div>
+            <div className="text-slate-600 text-xs">Kirchen Stats</div>
           </div>
 
           <nav className="flex gap-1 mx-auto flex-wrap justify-center">
             {TABS.map(t=>(
-              <button key={t.id}
-                onClick={()=>{ setPage(t.id); if (t.id!=='form') setEditing(null); }}
-                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border ${
-                  page===t.id?'bg-violet-600/20 border-violet-500/40 text-violet-300':'text-slate-500 hover:text-slate-300 border-transparent hover:bg-white/5'}`}>
+              <button key={t.id} onClick={()=>{ setPage(t.id); if(t.id!=='form') setEditing(null); }}
+                className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all border ${page===t.id?'bg-violet-600/20 border-violet-500/40 text-violet-300':'text-slate-500 hover:text-slate-300 border-transparent hover:bg-white/5'}`}>
                 <SI p={t.icon} size={13}/>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -1423,24 +1329,18 @@ const App = () => {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <SyncDot state={syncState}/>
-            <span className={`pill text-xs ${isAdmin?'bg-violet-500/20 text-violet-300':'bg-slate-700/40 text-slate-400'}`}>
-              {isAdmin?'Admin':'Viewer'}
-            </span>
-            <button onClick={logout} title="Abmelden"
-              className="text-slate-600 hover:text-slate-400 transition-all">
-              <SI p="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" size={14}/>
-            </button>
+            <span className={`pill text-xs ${isAdmin?'bg-violet-500/20 text-violet-300':'bg-slate-700/40 text-slate-400'}`}>{isAdmin?'Admin':'Viewer'}</span>
+            <button onClick={logout} title="Abmelden" className="text-slate-600 hover:text-slate-400 transition-all"><SI p={IC.logout} size={14}/></button>
           </div>
 
           {isAdmin && (
             <div className="flex gap-1.5 flex-shrink-0">
-              <button onClick={()=>exportExcel(entries,eventTypes)}
+              <button onClick={()=>exportExcel(entries,eventTypes,profile)}
                 className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs"
                 title="Als Excel-Datei exportieren">
                 <SI p={IC.download} size={13}/><span className="hidden sm:inline">Export</span>
               </button>
-              <label className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs cursor-pointer"
-                title="CSV importieren">
+              <label className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg transition-all text-xs cursor-pointer" title="CSV importieren">
                 <SI p={IC.upload} size={13}/><span className="hidden sm:inline">Import</span>
                 <input type="file" accept=".csv" onChange={importCSV} className="hidden"/>
               </label>
