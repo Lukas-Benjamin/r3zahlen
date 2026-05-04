@@ -39,6 +39,10 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
+// Chart.js Standardschrift auf Inter setzen (verhindert Symbol-Probleme in Canvas)
+Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
+Chart.defaults.font.size   = 12;
+
 // ‚îÄ‚îÄ SVG Icons ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
 const SI = ({ p, size=16, stroke=2 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -60,6 +64,8 @@ const IC = {
   check:    "M20 6L9 17l-5-5",
   warn:     ["M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z","M12 9v4M12 17h.01"],
   calendar: ["M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"],
+  chevDown: "M6 9l6 6 6-6",
+  chevUp:   "M18 15l-6-6-6 6",
 };
 
 // ‚îÄ‚îÄ Konstanten ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
@@ -80,33 +86,33 @@ const DEFAULT_TYPES = [
 ];
 
 // ‚îÄ‚îÄ Chart-Konfiguration (Funktion, um Mutation zu verhindern) ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const FONT = { family: "'Inter', system-ui, sans-serif" };
+const TOOLTIP = {
+  backgroundColor: 'rgba(10,10,20,0.97)', titleColor: '#f1f5f9',
+  bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
+  borderWidth: 1, padding: 10, cornerRadius: 8,
+};
+const fmtTick = v => v >= 10000 ? (v/1000).toFixed(0)+'k' : v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v;
+
 const mkCfg = (extra = {}) => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: { duration: 400 },
   plugins: {
-    legend: { labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { size: 12 } } },
-    tooltip: {
-      backgroundColor: 'rgba(10,10,20,0.97)', titleColor: '#f1f5f9',
-      bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
-      borderWidth: 1, padding: 10, cornerRadius: 8,
-    },
+    legend: { labels: { color: '#94a3b8', padding: 12, usePointStyle: true, font: { ...FONT, size: 11 } } },
+    tooltip: TOOLTIP,
     ...((extra.plugins) || {}),
   },
   scales: {
     x: {
-      ticks: { color: '#475569', maxRotation: 40, font: { size: 11 } },
+      ticks: { color: '#475569', maxRotation: 35, font: { ...FONT, size: 10 } },
       grid: { color: 'rgba(255,255,255,0.04)' },
     },
     y: {
-      ticks: {
-        color: '#475569',
-        precision: 0,
-        maxTicksLimit: 6,
-        callback: v => v >= 10000 ? (v/1000).toFixed(0)+'k' : v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v,
-      },
+      ticks: { color: '#475569', precision: 0, maxTicksLimit: 5, font: { ...FONT, size: 10 }, callback: fmtTick },
       grid: { color: 'rgba(255,255,255,0.04)' },
       beginAtZero: true,
-      grace: '5%',
+      grace: '4%',
     },
     ...((extra.scales) || {}),
   },
@@ -115,16 +121,10 @@ const mkCfg = (extra = {}) => ({
 const mkCfgNoScale = () => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: { duration: 400 },
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { size: 12 } }
-    },
-    tooltip: {
-      backgroundColor: 'rgba(10,10,20,0.97)', titleColor: '#f1f5f9',
-      bodyColor: '#94a3b8', borderColor: 'rgba(139,92,246,0.3)',
-      borderWidth: 1, padding: 10, cornerRadius: 8,
-    },
+    legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 10, usePointStyle: true, font: { ...FONT, size: 11 } } },
+    tooltip: TOOLTIP,
   },
 });
 
@@ -161,6 +161,26 @@ const ChartCanvas = ({ id, type, data, options, h = 240 }) => {
   if (!data?.labels?.length)
     return <div style={{height:h}} className="flex items-center justify-center text-slate-600 text-sm">Keine Daten im Zeitraum</div>;
   return <canvas ref={ref} style={{ height: h, display: 'block' }} />;
+};
+
+// ‚îÄ‚îÄ Einklappbare Chart-Karte ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
+const ChartCard = ({ title, children, extra, defaultOpen=true, className='' }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={`glass rounded-2xl glow overflow-hidden ${className}`}>
+      <button onClick={()=>setOpen(p=>!p)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-all">
+        <h3 className="font-semibold text-slate-200 text-sm">{title}</h3>
+        <div className="flex items-center gap-2">
+          {extra}
+          <span className="text-slate-500 transition-transform" style={{transform:open?'rotate(0deg)':'rotate(-90deg)',display:'inline-flex',transition:'transform .2s'}}>
+            <SI p={IC.chevDown} size={13}/>
+          </span>
+        </div>
+      </button>
+      {open && <div className="px-5 pb-4">{children}</div>}
+    </div>
+  );
 };
 
 // ‚îÄ‚îÄ Excel-Export ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ
@@ -334,7 +354,7 @@ const Dashboard = ({ entries, eventTypes }) => {
   const totKey  = METRICS.map(m=>totals[m.key]).join('-'); // f√ºr Chart-IDs
   const activeM = METRICS.filter(m => active.includes(m.key));
 
-  const labels = filtered.map(e => fmtShort(e.date) + (e.event ? ` ¬∑ ${e.event.slice(0,10)}` : ''));
+  const labels = filtered.map(e => fmtShort(e.date) + (e.event ? ` - ${e.event.slice(0,10)}` : ''));
 
   const makeLineData = (fill=false) => ({
     labels,
@@ -405,7 +425,7 @@ const Dashboard = ({ entries, eventTypes }) => {
     <div className="space-y-5 up">
       <div>
         <h1 className="text-xl font-bold grad">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr√§ge im Zeitraum ¬∑ {entries.length} gesamt</p>
+        <p className="text-slate-500 text-sm mt-0.5">{filtered.length} Eintr√§ge im Zeitraum - {entries.length} gesamt</p>
       </div>
 
       {/* Filter-Leiste */}
@@ -469,105 +489,97 @@ const Dashboard = ({ entries, eventTypes }) => {
       </div>
 
       {/* Hauptgrafik */}
-      <div className="glass rounded-2xl p-5 glow">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="font-semibold text-slate-200 text-sm">Entwicklung √ºber Zeit</h3>
-          <div className="flex gap-1.5">
+      <ChartCard title="Entwicklung √ºber Zeit"
+        extra={
+          <div className="flex gap-1">
             {[['bar','Balken'],['line','Linie'],['area','Fl√§che']].map(([v,l])=>(
-              <button key={v} onClick={()=>setView(v)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+              <button key={v} onClick={e=>{e.stopPropagation();setView(v);}}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${view===v?'bg-violet-600 text-white':'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
                 {l}
               </button>
             ))}
           </div>
-        </div>
-        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={220}/>
-      </div>
+        }>
+        <ChartCanvas id={mainId} type={mainType} data={filtered.length?mainData:null} options={mkCfg()} h={190}/>
+      </ChartCard>
 
       {/* Verteilung + Kumulativ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-5 glow">
-          <h3 className="font-semibold text-slate-200 text-sm mb-4">Verteilung gesamt</h3>
+        <ChartCard title="Verteilung gesamt">
           <ChartCanvas id={`donut-${from}-${to}-${etF}-${totKey}`} type="doughnut"
-            data={donutData} options={mkCfgNoScale()} h={190}/>
-        </div>
-        <div className="glass rounded-2xl p-5 glow">
-          <h3 className="font-semibold text-slate-200 text-sm mb-4">Kumulativer Verlauf</h3>
+            data={donutData} options={mkCfgNoScale()} h={170}/>
+        </ChartCard>
+        <ChartCard title="Kumulativer Verlauf">
           <ChartCanvas id={`cum-${from}-${to}-${active.join()}-${etF}-${totKey}`} type="line"
-            data={filtered.length?cumulData:null} options={mkCfg()} h={190}/>
-        </div>
+            data={filtered.length?cumulData:null} options={mkCfg()} h={170}/>
+        </ChartCard>
       </div>
 
       {/* Nach Event-Typ */}
       {etF==='all' && etData && (
-        <div className="glass rounded-2xl p-5 glow">
-          <h3 className="font-semibold text-slate-200 text-sm mb-4">Vergleich nach Event-Typ</h3>
+        <ChartCard title="Vergleich nach Event-Typ">
           <ChartCanvas id={`et-${from}-${to}-${active.join()}-${totKey}`} type="bar"
-            data={etData} options={mkCfg()} h={190}/>
-        </div>
+            data={etData} options={mkCfg()} h={170}/>
+        </ChartCard>
       )}
 
       {/* Einzelne Metriken */}
       {activeM.length>0 && (
-        <div>
-          <h3 className="font-semibold text-slate-200 text-sm mb-3">Einzelne Metriken</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title="Einzelne Metriken" defaultOpen={false}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
             {activeM.map(m => {
               const d = filtered.length ? {
                 labels: filtered.map(e=>fmtShort(e.date)),
                 datasets: [{label:m.label, data:filtered.map(e=>Number(e[m.key])||0), backgroundColor:m.color+'aa', borderRadius:4}],
               } : null;
               return (
-                <div key={m.key} className="glass rounded-2xl p-4" style={{border:`1px solid ${m.color}25`}}>
-                  <div className="flex items-center gap-2 mb-3">
+                <div key={m.key} className="rounded-xl p-3" style={{border:`1px solid ${m.color}25`,background:`${m.color}08`}}>
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="dot" style={{background:m.color}}/>
-                    <span className="font-semibold text-sm" style={{color:m.color}}>{m.label}</span>
-                    <span className="ml-auto text-2xl font-bold" style={{color:m.color}}>{totals[m.key]}</span>
+                    <span className="font-semibold text-xs" style={{color:m.color}}>{m.label}</span>
+                    <span className="ml-auto text-xl font-bold" style={{color:m.color}}>{totals[m.key]}</span>
                   </div>
                   <ChartCanvas id={`${m.key}-${from}-${to}-${etF}-${totals[m.key]}`} type="bar" data={d}
-                    options={mkCfg({plugins:{legend:{display:false}}})} h={120}/>
+                    options={mkCfg({plugins:{legend:{display:false}}})} h={100}/>
                 </div>
               );
             })}
           </div>
-        </div>
+        </ChartCard>
       )}
 
       {/* Tabelle */}
       {filtered.length>0 && (
-        <div>
-          <h3 className="font-semibold text-slate-200 text-sm mb-3">Eintr√§ge im Zeitraum</h3>
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
-                    <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Datum</th>
-                    <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Event</th>
-                    <th className="text-left px-3 py-2.5 text-slate-500 text-xs font-medium">Typ</th>
-                    {METRICS.map(m=><th key={m.key} className="text-right px-3 py-2.5 text-xs font-medium" style={{color:m.color}}>{m.label}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...filtered].reverse().slice(0,15).map((e,i)=>{
-                    const et = eventTypes.find(t=>t.id===e.eventTypeId);
-                    return (
-                      <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)', background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
-                        <td className="px-4 py-2 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date, e.dateTo)}</td>
-                        <td className="px-4 py-2 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'‚Äî'}</td>
-                        <td className="px-3 py-2">
-                          {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>
-                              : <span className="text-slate-700 text-xs">‚Äî</span>}
-                        </td>
-                        {METRICS.map(m=><td key={m.key} className="px-3 py-2 text-right font-semibold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        <ChartCard title={`Letzte Eintr√§ge (${Math.min(15,filtered.length)} von ${filtered.length})`} defaultOpen={false}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+                  <th className="text-left px-4 py-2 text-slate-500 text-xs font-medium">Datum</th>
+                  <th className="text-left px-4 py-2 text-slate-500 text-xs font-medium">Event</th>
+                  <th className="text-left px-3 py-2 text-slate-500 text-xs font-medium">Typ</th>
+                  {METRICS.map(m=><th key={m.key} className="text-right px-3 py-2 text-xs font-medium" style={{color:m.color}}>{m.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[...filtered].reverse().slice(0,15).map((e,i)=>{
+                  const et = eventTypes.find(t=>t.id===e.eventTypeId);
+                  return (
+                    <tr key={e.id} style={{borderTop:'1px solid rgba(255,255,255,0.04)', background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
+                      <td className="px-4 py-1.5 text-slate-300 whitespace-nowrap text-xs">{fmtRange(e.date, e.dateTo)}</td>
+                      <td className="px-4 py-1.5 text-slate-400 max-w-[140px] truncate text-xs">{e.event||'‚Äî'}</td>
+                      <td className="px-3 py-1.5">
+                        {et ? <span className="pill" style={{background:et.color+'22',color:et.color}}>{et.name}</span>
+                            : <span className="text-slate-700 text-xs">‚Äî</span>}
+                      </td>
+                      {METRICS.map(m=><td key={m.key} className="px-3 py-1.5 text-right font-semibold text-sm" style={{color:m.color}}>{Number(e[m.key])||0}</td>)}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </ChartCard>
       )}
     </div>
   );
@@ -746,10 +758,9 @@ const Comparison = ({ entries, eventTypes }) => {
           </div>
 
           {compData && (
-            <div className="glass rounded-2xl p-5 glow">
-              <h3 className="font-semibold text-slate-200 text-sm mb-4">{lA} vs. {lB}</h3>
-              <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={240}/>
-            </div>
+            <ChartCard title={`${lA} vs. ${lB}`}>
+              <ChartCanvas id={compId} type="bar" data={compData} options={mkCfg()} h={180}/>
+            </ChartCard>
           )}
 
           {rA.length>0 && rB.length>0 && (
