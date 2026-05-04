@@ -1271,23 +1271,20 @@ const LoginScreen = ({ onLogin }) => {
             Viewer &mdash; nur lesen
           </button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/8"/></div>
-            <div className="relative flex justify-center"><span className="bg-transparent px-2 text-slate-600 text-xs">oder</span></div>
-          </div>
-
           <div className="space-y-2">
             <div className="relative">
               <input
-                type={showPw ? 'text' : 'password'}
+                type="text"
                 value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}}
                 onKeyDown={e=>e.key==='Enter'&&tryAdmin()}
                 placeholder="Admin-Passwort"
-                className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 text-sm pr-10 ${err?'border-red-500/60':'border-white/10'}`}
+                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-slate-200 placeholder-slate-600 text-sm pr-12 ${err?'border-red-500/60':'border-white/10'}`}
+                style={{WebkitTextSecurity: showPw ? 'none' : 'disc', letterSpacing: showPw ? 'normal' : '0.15em'}}
                 autoFocus
               />
               <button type="button" onClick={()=>setShowPw(p=>!p)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1">
                 <SI p={showPw ? "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" : "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z"} size={15}/>
               </button>
             </div>
